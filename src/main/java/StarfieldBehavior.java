@@ -4,7 +4,7 @@ import java.util.Random;
 
 public class StarfieldBehavior implements Behavior {
 
-    private static final int    STAR_COUNT = 200;
+    private static final int    STAR_COUNT = 500;
     private static final double RANGE      = 2.0;
     private static final double NEAR_Z     = 0.06;
     private static final double MAX_VEL      = 0.35;  // rad/s
