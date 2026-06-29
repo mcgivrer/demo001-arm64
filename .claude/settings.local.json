@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./build.sh jar *)",
+      "Bash(./build.sh run *)"
+    ]
+  }
+}
