@@ -14,6 +14,17 @@ public class StarfieldBehavior implements Behavior {
     private static final double BRAKE_DECAY  = 8.0;   // deceleration rate when braking (1/s)
     private static final double MOUSE_DEAD   = 0.08;  // normalized dead zone for mouse joystick
 
+    private static final double THRUST_RATE     = 0.45; // engine power change (1/s) while CTRL/SHIFT held
+    private static final double MIN_THRUST      = 0.0;
+    private static final double MAX_THRUST      = 1.0;
+    private static final double INITIAL_THRUST  = 0.5;  // cruise power — matches the original fixed TRAVEL_SPEED
+    private static final double MAX_SPEED_PARSEC = 14.0; // fictional top speed, displayed at full thrust
+
+    private static final int    GAUGE_X      = 20;
+    private static final int    GAUGE_WIDTH  = 14;
+    private static final int    GAUGE_HEIGHT = 100;
+    private static final int    GAUGE_MARGIN = 64; // distance from panel bottom edge
+
     // Parallel arrays — one slot per star
     private final double[] sx, sy, sz;
     private final double[] travelSpeed;   // per-star speed multiplier (parallax depth)
@@ -22,6 +33,9 @@ public class StarfieldBehavior implements Behavior {
 
     // Camera angular velocities (rad/s)
     private double velYaw = 0.05, velPitch = 0.02, velRoll = 0.01;
+
+    // Engine power throttle, 0 (idle) .. 1 (full thrust)
+    private double enginePower = INITIAL_THRUST;
 
     private final int       cx, cy;
     private final double    projScaleX, projScaleY;
@@ -79,6 +93,10 @@ public class StarfieldBehavior implements Behavior {
 
     @Override
     public void update(Entity entity, double dt) {
+        if (input.thrustUp)   enginePower += THRUST_RATE * dt;
+        if (input.thrustDown) enginePower -= THRUST_RATE * dt;
+        enginePower = Math.clamp(enginePower, MIN_THRUST, MAX_THRUST);
+
         boolean anyKey = input.yawLeft || input.yawRight || input.pitchUp
                        || input.pitchDown || input.rollLeft || input.rollRight;
         boolean mouseActive = input.mouseDragging
@@ -141,7 +159,8 @@ public class StarfieldBehavior implements Behavior {
 
             sx[i] = x; sy[i] = y;
             // Forward travel: speed ∝ 1/z → slow far away, fast when close (parallax + warp)
-            z -= TRAVEL_SPEED * travelSpeed[i] / z * dt;
+            // Scaled by engine thrust: enginePower=0 → stopped, =INITIAL_THRUST → original speed, =1 → 2×
+            z -= TRAVEL_SPEED * travelSpeed[i] * (enginePower / INITIAL_THRUST) / z * dt;
             sz[i] = z;
 
             // Star passed in front of (or too close to) viewer → respawn at far depth
@@ -188,5 +207,49 @@ public class StarfieldBehavior implements Behavior {
                 }
             }
         }
+
+        drawThrustHud(g);
+    }
+
+    private void drawThrustHud(Graphics2D g) {
+        int panelHeight = cy * 2;
+        int gaugeBottom = panelHeight - GAUGE_MARGIN;
+        int gaugeTop    = gaugeBottom - GAUGE_HEIGHT;
+
+        // Outline
+        g.setColor(new Color(255, 255, 255, 110));
+        g.drawRect(GAUGE_X, gaugeTop, GAUGE_WIDTH, GAUGE_HEIGHT);
+
+        // Power fill, bottom-up
+        int fillHeight = (int) Math.round(GAUGE_HEIGHT * enginePower);
+        g.setColor(thrustColor(enginePower));
+        g.fillRect(GAUGE_X + 1, gaugeBottom - fillHeight, GAUGE_WIDTH - 1, fillHeight);
+
+        // Speed readout, fictional but proportional to engine power
+        double speedParsecPerSec = enginePower * MAX_SPEED_PARSEC;
+        g.setColor(Color.WHITE);
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
+        g.drawString(String.format("%.2f pc/s", speedParsecPerSec),
+            GAUGE_X + GAUGE_WIDTH + 10, gaugeBottom);
+    }
+
+    // Cyan (idle) -> yellow (cruise) -> red (full thrust)
+    private static Color thrustColor(double power) {
+        Color from, to;
+        float  t;
+        if (power < 0.5) {
+            from = new Color(64, 200, 255);
+            to   = new Color(255, 225, 70);
+            t    = (float) (power / 0.5);
+        } else {
+            from = new Color(255, 225, 70);
+            to   = new Color(255, 70, 70);
+            t    = (float) ((power - 0.5) / 0.5);
+        }
+        return new Color(
+            (int) (from.getRed()   + (to.getRed()   - from.getRed())   * t),
+            (int) (from.getGreen() + (to.getGreen() - from.getGreen()) * t),
+            (int) (from.getBlue()  + (to.getBlue()  - from.getBlue())  * t)
+        );
     }
 }

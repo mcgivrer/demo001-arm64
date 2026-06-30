@@ -141,26 +141,30 @@ public class Main {
         @Override
         public void keyPressed(KeyEvent e) {
             switch (e.getKeyCode()) {
-                case KeyEvent.VK_LEFT,  KeyEvent.VK_A -> input.yawLeft   = true;
-                case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight  = true;
-                case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp   = true;
-                case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown = true;
-                case KeyEvent.VK_Q                    -> input.rollLeft  = true;
-                case KeyEvent.VK_E                    -> input.rollRight = true;
-                case KeyEvent.VK_SPACE                -> input.brake     = true;
+                case KeyEvent.VK_LEFT,  KeyEvent.VK_A -> input.yawLeft    = true;
+                case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight   = true;
+                case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp    = true;
+                case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown  = true;
+                case KeyEvent.VK_Q                    -> input.rollLeft   = true;
+                case KeyEvent.VK_E                    -> input.rollRight  = true;
+                case KeyEvent.VK_SPACE                -> input.brake      = true;
+                case KeyEvent.VK_CONTROL               -> input.thrustUp   = true;
+                case KeyEvent.VK_SHIFT                 -> input.thrustDown = true;
             }
         }
 
         @Override
         public void keyReleased(KeyEvent e) {
             switch (e.getKeyCode()) {
-                case KeyEvent.VK_LEFT,  KeyEvent.VK_A -> input.yawLeft   = false;
-                case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight  = false;
-                case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp   = false;
-                case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown = false;
-                case KeyEvent.VK_Q                    -> input.rollLeft  = false;
-                case KeyEvent.VK_E                    -> input.rollRight = false;
-                case KeyEvent.VK_SPACE                -> input.brake     = false;
+                case KeyEvent.VK_LEFT,  KeyEvent.VK_A -> input.yawLeft    = false;
+                case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight   = false;
+                case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp    = false;
+                case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown  = false;
+                case KeyEvent.VK_Q                    -> input.rollLeft   = false;
+                case KeyEvent.VK_E                    -> input.rollRight  = false;
+                case KeyEvent.VK_SPACE                -> input.brake      = false;
+                case KeyEvent.VK_CONTROL               -> input.thrustUp   = false;
+                case KeyEvent.VK_SHIFT                 -> input.thrustDown = false;
             }
         }
 
