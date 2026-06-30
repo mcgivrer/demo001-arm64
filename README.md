@@ -9,6 +9,9 @@ Une animation de vol à travers un champ d'étoiles en 3D, développée en Java/
 La caméra survole 500 étoiles réparties en 3D — pilotable au clavier et à la souris, ou en dérive brownienne autonome (lacet, tangage, roulis).
 Les étoiles sont colorées selon la classification spectrale de Harvard (M rouge → O bleu géant)
 avec des probabilités réalistes, une parallaxe vraie et une loi en inverse du carré pour la luminosité.
+Un HUD affiche en temps réel la puissance des moteurs (jauge) et la vitesse de croisière (en parsecs/seconde, fictive).
+
+![Rendu avec HUD de propulsion](src/docs/illustrations/app-render-hud.svg)
 
 ## Prérequis
 
@@ -49,8 +52,16 @@ sdk env           # active la version du projet
 | Q / E                        | Roll — rotation de l'horizon   |
 | SPACE                        | Frein — stoppe la rotation     |
 | Clic gauche + glisser        | Joystick analogique yaw + pitch |
+| CTRL                         | Augmente la puissance moteur (thrust) |
+| SHIFT                        | Diminue la puissance moteur (thrust)  |
+| ESCAPE                       | Quitter (boîte de confirmation Oui/Non) |
 
 En l'absence d'entrée, la caméra reprend sa dérive brownienne autonome.
+
+La puissance moteur pilote la vitesse d'avancement du champ d'étoiles et s'affiche
+dans le HUD en bas à gauche : une jauge verticale (cyan → jaune → rouge selon le
+régime) et une vitesse en parsecs/seconde, qui évolue proportionnellement à la
+puissance moteur.
 
 ## Structure
 
@@ -59,8 +70,9 @@ src/main/java/
 ├── Main.java               # Point d'entrée, boucle de jeu, fenêtre Swing
 ├── Entity.java             # Objet de scène (position, vitesse, behaviors)
 ├── Behavior.java           # Interface update/draw
+├── InputState.java         # État partagé clavier/souris (yaw/pitch/roll, thrust, ...)
 ├── ParticleSystem.java     # Entity spécialisée pour les particules
-└── StarfieldBehavior.java  # Rendu et physique du champ d'étoiles
+└── StarfieldBehavior.java  # Rendu et physique du champ d'étoiles, throttle, HUD
 
 src/main/resources/
 ├── config.properties       # Taille fenêtre et langue

@@ -45,6 +45,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `06-perspective-projection.md` | Perspective projection, inverse-square brightness, glow |
 | `07-game-loop.md` | Swing game loop, EDT, delta-time |
 | `08-input-controls.md` | InputState, GamePanel listeners, keyboard/mouse camera control |
+| `09-thrust-engine.md` | Engine power (thrust) throttle, speed/power HUD |
 
 ### Documentation rules
 

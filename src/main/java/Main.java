@@ -17,6 +17,7 @@ public class Main {
     private final int    windowWidth;
     private final int    windowHeight;
     private final String windowTitle;
+    private final ResourceBundle bundle;
 
     private final List<Entity>  entities   = new ArrayList<>();
     private final InputState    inputState = new InputState();
@@ -35,7 +36,8 @@ public class Main {
         String langCode = config.getProperty("app.language.default", DEFAULT_LANG);
         Locale locale   = Locale.of(langCode.toLowerCase(Locale.ROOT));
 
-        windowTitle = loadTitle(locale);
+        bundle      = loadBundle(locale);
+        windowTitle = getMessage("app.title", "Demo001");
 
         System.out.printf("Window: %dx%d  locale: %s  title: \"%s\"%n",
             windowWidth, windowHeight, locale, windowTitle);
@@ -55,13 +57,21 @@ public class Main {
         return props;
     }
 
-    private String loadTitle(Locale locale) {
+    private ResourceBundle loadBundle(Locale locale) {
         try {
-            ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages", locale);
-            return bundle.getString("app.title");
+            return ResourceBundle.getBundle("i18n.messages", locale);
         } catch (MissingResourceException e) {
-            System.err.println("Bundle 'i18n.messages' not found; using hard-coded title.");
-            return "Demo001";
+            System.err.println("Bundle 'i18n.messages' not found; using hard-coded text.");
+            return null;
+        }
+    }
+
+    private String getMessage(String key, String fallback) {
+        if (bundle == null) return fallback;
+        try {
+            return bundle.getString(key);
+        } catch (MissingResourceException e) {
+            return fallback;
         }
     }
 
@@ -83,7 +93,10 @@ public class Main {
         frame.setSize(windowWidth, windowHeight);
         frame.setLocationRelativeTo(null);
 
-        GamePanel panel = new GamePanel(entities, inputState);
+        String exitTitle   = getMessage("app.exit.confirm.title",   "Confirm Exit");
+        String exitMessage = getMessage("app.exit.confirm.message", "Are you sure you want to quit?");
+
+        GamePanel panel = new GamePanel(entities, inputState, exitTitle, exitMessage);
         frame.setContentPane(panel);
         frame.setVisible(true);
         panel.requestFocusInWindow();
@@ -110,10 +123,14 @@ public class Main {
 
         private final List<Entity> entities;
         private final InputState   input;
+        private final String       exitTitle;
+        private final String       exitMessage;
 
-        GamePanel(List<Entity> entities, InputState input) {
-            this.entities = entities;
-            this.input    = input;
+        GamePanel(List<Entity> entities, InputState input, String exitTitle, String exitMessage) {
+            this.entities    = entities;
+            this.input       = input;
+            this.exitTitle   = exitTitle;
+            this.exitMessage = exitMessage;
             setBackground(Color.BLACK);
             setFocusable(true);
             addKeyListener(this);
@@ -145,11 +162,12 @@ public class Main {
                 case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight   = true;
                 case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp    = true;
                 case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown  = true;
-                case KeyEvent.VK_Q                    -> input.rollLeft   = true;
-                case KeyEvent.VK_E                    -> input.rollRight  = true;
-                case KeyEvent.VK_SPACE                -> input.brake      = true;
-                case KeyEvent.VK_CONTROL               -> input.thrustUp   = true;
-                case KeyEvent.VK_SHIFT                 -> input.thrustDown = true;
+                case KeyEvent.VK_Q      -> input.rollLeft   = true;
+                case KeyEvent.VK_E      -> input.rollRight  = true;
+                case KeyEvent.VK_SPACE  -> input.brake      = true;
+                case KeyEvent.VK_CONTROL -> input.thrustUp   = true;
+                case KeyEvent.VK_SHIFT   -> input.thrustDown = true;
+                case KeyEvent.VK_ESCAPE  -> confirmExit();
             }
         }
 
@@ -160,15 +178,24 @@ public class Main {
                 case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight   = false;
                 case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp    = false;
                 case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown  = false;
-                case KeyEvent.VK_Q                    -> input.rollLeft   = false;
-                case KeyEvent.VK_E                    -> input.rollRight  = false;
-                case KeyEvent.VK_SPACE                -> input.brake      = false;
-                case KeyEvent.VK_CONTROL               -> input.thrustUp   = false;
-                case KeyEvent.VK_SHIFT                 -> input.thrustDown = false;
+                case KeyEvent.VK_Q      -> input.rollLeft   = false;
+                case KeyEvent.VK_E      -> input.rollRight  = false;
+                case KeyEvent.VK_SPACE  -> input.brake      = false;
+                case KeyEvent.VK_CONTROL -> input.thrustUp   = false;
+                case KeyEvent.VK_SHIFT   -> input.thrustDown = false;
             }
         }
 
         @Override public void keyTyped(KeyEvent e) {}
+
+        private void confirmExit() {
+            int choice = JOptionPane.showConfirmDialog(
+                this, exitMessage, exitTitle,
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (choice == JOptionPane.YES_OPTION) {
+                System.exit(0);
+            }
+        }
 
         // --- MouseListener ---
 

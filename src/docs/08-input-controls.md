@@ -22,6 +22,8 @@ classDiagram
         +boolean rollLeft
         +boolean rollRight
         +boolean brake
+        +boolean thrustUp
+        +boolean thrustDown
         +boolean mouseDragging
         +double mouseNormX
         +double mouseNormY
@@ -29,12 +31,15 @@ classDiagram
 
     class GamePanel {
         -InputState input
+        -String exitTitle
+        -String exitMessage
         +keyPressed(KeyEvent)
         +keyReleased(KeyEvent)
         +mousePressed(MouseEvent)
         +mouseReleased(MouseEvent)
         +mouseDragged(MouseEvent)
         -updateMouseNorm(MouseEvent)
+        -confirmExit()
     }
 
     class StarfieldBehavior {
@@ -65,6 +70,26 @@ ni verrou n'est nécessaire.
 | Roll droite     | E                    | —                               |
 | Frein           | SPACE                | —                               |
 | Joystick yaw+pitch | —               | Clic gauche maintenu + glisser  |
+| Puissance moteur +| CTRL                 | —                               |
+| Puissance moteur -| SHIFT                | —                               |
+| Quitter (confirmation) | ESCAPE          | —                               |
+
+La puissance moteur (`thrustUp`/`thrustDown`) pilote la vitesse d'avancement du
+vaisseau et alimente le HUD — voir [chapitre 9](09-thrust-engine.md).
+
+---
+
+## Quitter l'application — ESCAPE
+
+Contrairement aux autres touches, ESCAPE ne modifie pas `InputState` : `keyPressed`
+appelle directement `GamePanel.confirmExit()`, qui ouvre une boîte de dialogue modale
+(`JOptionPane.showConfirmDialog`, `YES_NO_OPTION`) avec un titre et un message
+localisés (clés i18n `app.exit.confirm.title` / `app.exit.confirm.message`, résolues
+par `Main.getMessage(key, fallback)` puis injectées dans `GamePanel` au moment de sa
+construction). Si l'utilisateur confirme, `System.exit(0)` est appelé ; sinon
+l'animation reprend normalement — le `javax.swing.Timer` continue de tourner pendant
+que la boîte de dialogue est affichée, simplement gelé le temps que l'EDT soit occupé
+par la modale.
 
 ---
 
@@ -203,4 +228,5 @@ if (input.brake) {
 > Voir aussi :
 > - [05 — Rotations 3D](05-rotations-3d.md)
 > - [07 — Boucle de jeu et intégration Swing](07-game-loop.md)
+> - [09 — Propulsion : puissance moteur et HUD](09-thrust-engine.md)
 > - [01 — Architecture générale](01-architecture.md)
