@@ -3,6 +3,7 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.event.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -17,7 +18,8 @@ public class Main {
     private final int    windowHeight;
     private final String windowTitle;
 
-    private final List<Entity> entities = new ArrayList<>();
+    private final List<Entity>  entities   = new ArrayList<>();
+    private final InputState    inputState = new InputState();
     private long lastTime = System.nanoTime();
 
     public Main() {
@@ -72,7 +74,7 @@ public class Main {
     }
 
     private void initEntities() {
-        entities.add(new ParticleSystem(windowWidth, windowHeight));
+        entities.add(new ParticleSystem(windowWidth, windowHeight, inputState));
     }
 
     private void createAndShowWindow() {
@@ -81,9 +83,10 @@ public class Main {
         frame.setSize(windowWidth, windowHeight);
         frame.setLocationRelativeTo(null);
 
-        GamePanel panel = new GamePanel(entities);
+        GamePanel panel = new GamePanel(entities, inputState);
         frame.setContentPane(panel);
         frame.setVisible(true);
+        panel.requestFocusInWindow();
         startGameLoop(panel);
     }
 
@@ -102,12 +105,26 @@ public class Main {
         System.out.println("done.");
     }
 
-    private static class GamePanel extends JPanel {
-        private final List<Entity> entities;
+    private static class GamePanel extends JPanel
+            implements KeyListener, MouseListener, MouseMotionListener {
 
-        GamePanel(List<Entity> entities) {
+        private final List<Entity> entities;
+        private final InputState   input;
+
+        GamePanel(List<Entity> entities, InputState input) {
             this.entities = entities;
+            this.input    = input;
             setBackground(Color.BLACK);
+            setFocusable(true);
+            addKeyListener(this);
+            addMouseListener(this);
+            addMouseMotionListener(this);
+        }
+
+        @Override
+        public void addNotify() {
+            super.addNotify();
+            requestFocusInWindow();
         }
 
         @Override
@@ -117,6 +134,76 @@ public class Main {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                                 RenderingHints.VALUE_ANTIALIAS_ON);
             for (Entity e : entities) e.draw(g2);
+        }
+
+        // --- KeyListener ---
+
+        @Override
+        public void keyPressed(KeyEvent e) {
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_LEFT,  KeyEvent.VK_A -> input.yawLeft   = true;
+                case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight  = true;
+                case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp   = true;
+                case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown = true;
+                case KeyEvent.VK_Q                    -> input.rollLeft  = true;
+                case KeyEvent.VK_E                    -> input.rollRight = true;
+                case KeyEvent.VK_SPACE                -> input.brake     = true;
+            }
+        }
+
+        @Override
+        public void keyReleased(KeyEvent e) {
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_LEFT,  KeyEvent.VK_A -> input.yawLeft   = false;
+                case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> input.yawRight  = false;
+                case KeyEvent.VK_UP,    KeyEvent.VK_W -> input.pitchUp   = false;
+                case KeyEvent.VK_DOWN,  KeyEvent.VK_S -> input.pitchDown = false;
+                case KeyEvent.VK_Q                    -> input.rollLeft  = false;
+                case KeyEvent.VK_E                    -> input.rollRight = false;
+                case KeyEvent.VK_SPACE                -> input.brake     = false;
+            }
+        }
+
+        @Override public void keyTyped(KeyEvent e) {}
+
+        // --- MouseListener ---
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            requestFocusInWindow();
+            if (SwingUtilities.isLeftMouseButton(e)) {
+                input.mouseDragging = true;
+                updateMouseNorm(e);
+            }
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            if (SwingUtilities.isLeftMouseButton(e)) {
+                input.mouseDragging = false;
+                input.mouseNormX    = 0;
+                input.mouseNormY    = 0;
+            }
+        }
+
+        @Override public void mouseClicked(MouseEvent e)  {}
+        @Override public void mouseEntered(MouseEvent e)  {}
+        @Override public void mouseExited(MouseEvent e)   {}
+
+        // --- MouseMotionListener ---
+
+        @Override
+        public void mouseDragged(MouseEvent e) {
+            if (input.mouseDragging) updateMouseNorm(e);
+        }
+
+        @Override public void mouseMoved(MouseEvent e) {}
+
+        private void updateMouseNorm(MouseEvent e) {
+            double halfW = getWidth()  / 2.0;
+            double halfH = getHeight() / 2.0;
+            input.mouseNormX = Math.clamp((e.getX() - halfW) / halfW, -1.0, 1.0);
+            input.mouseNormY = Math.clamp((e.getY() - halfH) / halfH, -1.0, 1.0);
         }
     }
 

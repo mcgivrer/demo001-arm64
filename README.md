@@ -6,7 +6,7 @@ Une animation de vol à travers un champ d'étoiles en 3D, développée en Java/
 
 ## Aperçu
 
-La caméra dérive aléatoirement (lacet, tangage, roulis) à travers 500 étoiles réparties en 3D.
+La caméra survole 500 étoiles réparties en 3D — pilotable au clavier et à la souris, ou en dérive brownienne autonome (lacet, tangage, roulis).
 Les étoiles sont colorées selon la classification spectrale de Harvard (M rouge → O bleu géant)
 avec des probabilités réalistes, une parallaxe vraie et une loi en inverse du carré pour la luminosité.
 
@@ -39,6 +39,18 @@ sdk env           # active la version du projet
 | `app.window.width`     | 800    | Largeur de la fenêtre (px)         |
 | `app.window.height`    | 600    | Hauteur de la fenêtre (px)         |
 | `app.language.default` | EN     | Langue du titre (EN/FR/DE/ES/IT)   |
+
+## Contrôles
+
+| Touche / Action              | Effet                          |
+|------------------------------|--------------------------------|
+| ← → / A D                   | Yaw — virer gauche / droite    |
+| ↑ ↓ / W S                   | Pitch — monter / descendre     |
+| Q / E                        | Roll — rotation de l'horizon   |
+| SPACE                        | Frein — stoppe la rotation     |
+| Clic gauche + glisser        | Joystick analogique yaw + pitch |
+
+En l'absence d'entrée, la caméra reprend sa dérive brownienne autonome.
 
 ## Structure
 

@@ -1,6 +1,6 @@
 public class ParticleSystem extends Entity {
-    public ParticleSystem(int width, int height) {
+    public ParticleSystem(int width, int height, InputState input) {
         super(0, 0, width, height);
-        addBehavior(new StarfieldBehavior(width, height));
+        addBehavior(new StarfieldBehavior(width, height, input));
     }
 }

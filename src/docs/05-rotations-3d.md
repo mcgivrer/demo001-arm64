@@ -70,12 +70,14 @@ $$\mathbf{p}' = R_Z(\alpha_R) \cdot R_X(\alpha_P) \cdot R_Y(\alpha_Y) \cdot \mat
 
 ---
 
-## Dérive brownienne des vitesses angulaires
+## Contrôle des vitesses angulaires — mode hybride
 
-Les vitesses angulaires $\omega_Y$, $\omega_P$, $\omega_R$ (en rad/s) ne sont pas
-constantes : elles subissent une **dérive brownienne discrète** à chaque frame.
+Les vitesses angulaires $\omega_Y$, $\omega_P$, $\omega_R$ (en rad/s) sont gérées selon
+trois modes exclusifs, par ordre de priorité (voir [chapitre 8](08-input-controls.md)) :
 
-Le processus est un mouvement de Wiener discrétisé avec bruit gaussien :
+1. **Frein** (SPACE) — décroissance exponentielle vers zéro.
+2. **Contrôle utilisateur** (flèches / WASD / Q-E / souris) — lerp vers une cible.
+3. **Dérive brownienne** (aucune entrée) — mouvement de Wiener discrétisé :
 
 $$\omega_{n+1} = \text{clamp}\!\left(\omega_n + \mathcal{N}(0,\,\sigma^2)\cdot\Delta t,\; -\omega_{\max},\; \omega_{\max}\right)$$
 
@@ -102,7 +104,7 @@ avec $\sigma = 0.06\ \text{rad/s}^2$ (`DRIFT_ACC`) et $\omega_{\max} = 0.35\ \te
 ```
 
 Ce mécanisme produit une trajectoire douce et imprévisible — sans chocs brusques — qui
-donne l'illusion d'un vaisseau spatial dérivant librement.
+donne l'illusion d'un vaisseau spatial dérivant librement lorsqu'aucune entrée n'est active.
 
 ---
 
@@ -126,19 +128,23 @@ Quand $z \le z_{\min}$ (`NEAR_Z = 0.06`), l'étoile est **respawnée** à profon
 
 ```mermaid
 flowchart TD
-    A([update dt]) --> B[Bruit gaussien\nsur velYaw/Pitch/Roll]
-    B --> C[Clamp vitesses\n±0.35 rad/s]
-    C --> D[Calcul angles frame\nα = vel × dt]
-    D --> E[Précalcul cos/sin\npour les 3 axes]
-    E --> F{Pour chaque\nétoile i}
-    F --> G[Rotation Yaw\nautour de Y]
-    G --> H[Rotation Pitch\nautour de X]
-    H --> I[Rotation Roll\nautour de Z]
-    I --> J[Forward travel\nz -= speed/z × dt]
-    J --> K{z ≤ NEAR_Z ?}
-    K -- oui --> L[initStar\nrespawn lointain]
-    K -- non --> F
-    L --> F
+    A([update dt]) --> B{Mode ?}
+    B -- Frein SPACE --> C[Décroissance exponentielle\nω *= max(0, 1−8·dt)]
+    B -- Clavier/Souris --> D[Lerp vers cible ω*\nω += (ω*-ω)·4·dt]
+    B -- Aucune entrée --> E[Bruit gaussien brownien\nω += N·dt, clamp ±0.35]
+    C --> F[Calcul angles frame\nα = vel × dt]
+    D --> F
+    E --> F
+    F --> G[Précalcul cos/sin\npour les 3 axes]
+    G --> H{Pour chaque\nétoile i}
+    H --> I[Rotation Yaw\nautour de Y]
+    I --> J[Rotation Pitch\nautour de X]
+    J --> K[Rotation Roll\nautour de Z]
+    K --> L[Forward travel\nz -= speed/z × dt]
+    L --> M{z ≤ NEAR_Z ?}
+    M -- oui --> N[initStar\nrespawn lointain]
+    M -- non --> H
+    N --> H
 ```
 
 ---

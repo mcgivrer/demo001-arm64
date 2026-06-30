@@ -44,6 +44,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `05-rotations-3d.md` | 3D rotations (Yaw/Pitch/Roll), Brownian drift |
 | `06-perspective-projection.md` | Perspective projection, inverse-square brightness, glow |
 | `07-game-loop.md` | Swing game loop, EDT, delta-time |
+| `08-input-controls.md` | InputState, GamePanel listeners, keyboard/mouse camera control |
 
 ### Documentation rules
 

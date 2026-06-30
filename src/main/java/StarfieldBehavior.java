@@ -4,12 +4,15 @@ import java.util.Random;
 
 public class StarfieldBehavior implements Behavior {
 
-    private static final int    STAR_COUNT = 500;
-    private static final double RANGE      = 2.0;
-    private static final double NEAR_Z     = 0.06;
+    private static final int    STAR_COUNT   = 500;
+    private static final double RANGE        = 2.0;
+    private static final double NEAR_Z       = 0.06;
     private static final double MAX_VEL      = 0.35;  // rad/s
     private static final double DRIFT_ACC    = 0.06;  // rad/s² noise amplitude
     private static final double TRAVEL_SPEED = 0.20;  // base forward speed (units/s at z=1)
+    private static final double LERP_RATE    = 4.0;   // response speed for user control (1/s)
+    private static final double BRAKE_DECAY  = 8.0;   // deceleration rate when braking (1/s)
+    private static final double MOUSE_DEAD   = 0.08;  // normalized dead zone for mouse joystick
 
     // Parallel arrays — one slot per star
     private final double[] sx, sy, sz;
@@ -20,9 +23,10 @@ public class StarfieldBehavior implements Behavior {
     // Camera angular velocities (rad/s)
     private double velYaw = 0.05, velPitch = 0.02, velRoll = 0.01;
 
-    private final int    cx, cy;
-    private final double projScaleX, projScaleY;
-    private final Random rng = new Random(42L);
+    private final int       cx, cy;
+    private final double    projScaleX, projScaleY;
+    private final Random    rng = new Random(42L);
+    private final InputState input;
 
     // Harvard spectral classification: {cumProb, R, G, B, minBrightness, baseSizePx}
     private static final double[][] SPECTRAL_TYPES = {
@@ -35,7 +39,8 @@ public class StarfieldBehavior implements Behavior {
         {1.000, 155, 176, 255, 1.00, 5.0},  // O — blue giant      (rarest)
     };
 
-    public StarfieldBehavior(int width, int height) {
+    public StarfieldBehavior(int width, int height, InputState input) {
+        this.input = input;
         cx = width  / 2;
         cy = height / 2;
         projScaleX = width  * 0.45;
@@ -74,13 +79,39 @@ public class StarfieldBehavior implements Behavior {
 
     @Override
     public void update(Entity entity, double dt) {
-        // Brownian angular drift on 3 axes
-        velYaw   += rng.nextGaussian() * DRIFT_ACC * dt;
-        velPitch += rng.nextGaussian() * DRIFT_ACC * dt;
-        velRoll  += rng.nextGaussian() * DRIFT_ACC * dt;
-        velYaw   = Math.clamp(velYaw,   -MAX_VEL, MAX_VEL);
-        velPitch = Math.clamp(velPitch, -MAX_VEL, MAX_VEL);
-        velRoll  = Math.clamp(velRoll,  -MAX_VEL, MAX_VEL);
+        boolean anyKey = input.yawLeft || input.yawRight || input.pitchUp
+                       || input.pitchDown || input.rollLeft || input.rollRight;
+        boolean mouseActive = input.mouseDragging
+                            && (Math.abs(input.mouseNormX) > MOUSE_DEAD
+                                || Math.abs(input.mouseNormY) > MOUSE_DEAD);
+
+        if (input.brake) {
+            double decay = Math.max(0.0, 1.0 - BRAKE_DECAY * dt);
+            velYaw *= decay; velPitch *= decay; velRoll *= decay;
+        } else if (anyKey || mouseActive) {
+            double tYaw = 0, tPitch = 0, tRoll = 0;
+            if (input.yawLeft)   tYaw   = -MAX_VEL;
+            if (input.yawRight)  tYaw   = +MAX_VEL;
+            if (input.pitchUp)   tPitch = -MAX_VEL;
+            if (input.pitchDown) tPitch = +MAX_VEL;
+            if (input.rollLeft)  tRoll  = -MAX_VEL;
+            if (input.rollRight) tRoll  = +MAX_VEL;
+            if (mouseActive) {
+                tYaw   = input.mouseNormX * MAX_VEL;
+                tPitch = input.mouseNormY * MAX_VEL;
+            }
+            velYaw   += (tYaw   - velYaw)   * LERP_RATE * dt;
+            velPitch += (tPitch - velPitch) * LERP_RATE * dt;
+            velRoll  += (tRoll  - velRoll)  * LERP_RATE * dt;
+        } else {
+            // Brownian angular drift on 3 axes
+            velYaw   += rng.nextGaussian() * DRIFT_ACC * dt;
+            velPitch += rng.nextGaussian() * DRIFT_ACC * dt;
+            velRoll  += rng.nextGaussian() * DRIFT_ACC * dt;
+            velYaw   = Math.clamp(velYaw,   -MAX_VEL, MAX_VEL);
+            velPitch = Math.clamp(velPitch, -MAX_VEL, MAX_VEL);
+            velRoll  = Math.clamp(velRoll,  -MAX_VEL, MAX_VEL);
+        }
 
         double ay = velYaw   * dt;
         double ap = velPitch * dt;

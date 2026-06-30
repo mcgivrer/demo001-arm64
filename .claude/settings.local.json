@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(./build.sh jar *)",
-      "Bash(./build.sh run *)"
+      "Bash(./build.sh run *)",
+      "Bash(./build.sh build *)",
+      "Bash(echo \"PID:$!\")",
+      "Bash(disown)",
+      "Bash(echo \"started PID $!\")",
+      "Bash(xwininfo *)",
+      "Bash(xprop -root _NET_ACTIVE_WINDOW)"
     ]
   }
 }
