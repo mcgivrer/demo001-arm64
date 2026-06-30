@@ -24,6 +24,7 @@ classDiagram
         +boolean brake
         +boolean thrustUp
         +boolean thrustDown
+        +boolean showHelp
         +boolean mouseDragging
         +double mouseNormX
         +double mouseNormY
@@ -45,6 +46,8 @@ classDiagram
     class StarfieldBehavior {
         -InputState input
         +update(Entity, double dt)
+        +draw(Entity, Graphics2D)
+        -drawControlsHelp(Graphics2D)
     }
 
     GamePanel --> InputState : écrit
@@ -73,9 +76,39 @@ ni verrou n'est nécessaire.
 | Puissance moteur +| CTRL                 | —                               |
 | Puissance moteur -| SHIFT                | —                               |
 | Quitter (confirmation) | ESCAPE          | —                               |
+| Afficher/masquer l'aide | H              | —                               |
 
 La puissance moteur (`thrustUp`/`thrustDown`) pilote la vitesse d'avancement du
 vaisseau et alimente le HUD — voir [chapitre 9](09-thrust-engine.md).
+
+---
+
+## Grille d'aide des contrôles — H
+
+`InputState.showHelp` est un booléen affiché à `true` par défaut : la grille d'aide
+est donc **visible au démarrage**, sans action de l'utilisateur. Comme ESCAPE, H ne
+pilote pas un état moteur continu mais une **bascule** (toggle) — appuyer une fois
+inverse `showHelp`, peu importe la durée de l'appui.
+
+La répétition de touche du système d'exploitation (key-repeat) pose un problème
+classique pour un toggle : tant que H reste enfoncée, l'OS envoie plusieurs
+`KEY_PRESSED` consécutifs, ce qui ferait clignoter l'affichage si chaque événement
+inversait `showHelp`. `GamePanel` filtre ce phénomène avec un drapeau local
+`hKeyDown`, remis à `false` uniquement sur `keyReleased` :
+
+```java
+private void toggleHelp() {
+    if (!hKeyDown) {
+        input.showHelp = !input.showHelp;
+        hKeyDown = true;
+    }
+}
+```
+
+Le rendu lui-même est délégué à `StarfieldBehavior.drawControlsHelp()`, appelé en
+toute fin de `draw()` (après le HUD de propulsion) si `input.showHelp` est vrai : un
+panneau semi-transparent arrondi, ancré en bas à droite du panel, énumère
+l'intégralité du mapping clavier/souris ci-dessus.
 
 ---
 

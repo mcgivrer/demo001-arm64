@@ -125,6 +125,7 @@ public class Main {
         private final InputState   input;
         private final String       exitTitle;
         private final String       exitMessage;
+        private boolean            hKeyDown;
 
         GamePanel(List<Entity> entities, InputState input, String exitTitle, String exitMessage) {
             this.entities    = entities;
@@ -168,6 +169,7 @@ public class Main {
                 case KeyEvent.VK_CONTROL -> input.thrustUp   = true;
                 case KeyEvent.VK_SHIFT   -> input.thrustDown = true;
                 case KeyEvent.VK_ESCAPE  -> confirmExit();
+                case KeyEvent.VK_H       -> toggleHelp();
             }
         }
 
@@ -183,10 +185,18 @@ public class Main {
                 case KeyEvent.VK_SPACE  -> input.brake      = false;
                 case KeyEvent.VK_CONTROL -> input.thrustUp   = false;
                 case KeyEvent.VK_SHIFT   -> input.thrustDown = false;
+                case KeyEvent.VK_H       -> hKeyDown = false;
             }
         }
 
         @Override public void keyTyped(KeyEvent e) {}
+
+        private void toggleHelp() {
+            if (!hKeyDown) {
+                input.showHelp = !input.showHelp;
+                hKeyDown = true;
+            }
+        }
 
         private void confirmExit() {
             int choice = JOptionPane.showConfirmDialog(

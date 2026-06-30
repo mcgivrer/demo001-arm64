@@ -25,6 +25,23 @@ public class StarfieldBehavior implements Behavior {
     private static final int    GAUGE_HEIGHT = 100;
     private static final int    GAUGE_MARGIN = 64; // distance from panel bottom edge
 
+    private static final int    HELP_MARGIN  = 60; // distance from panel right/bottom edges
+    private static final int    HELP_WIDTH   = 250;
+    private static final int    HELP_ROW_H   = 16;
+    private static final int    HELP_KEY_COL = 110; // x-offset of the action column, from the panel's left edge
+
+    // {key label, action description}
+    private static final String[][] HELP_ROWS = {
+        {"←→ / A D",     "Yaw"},
+        {"↑↓ / W S",     "Pitch"},
+        {"Q / E",                  "Roll"},
+        {"SPACE",                  "Frein"},
+        {"Clic + glisser",         "Joystick"},
+        {"CTRL / SHIFT",           "Thrust +/-"},
+        {"ESCAPE",                 "Quitter"},
+        {"H",                      "Afficher/masquer l'aide"},
+    };
+
     // Parallel arrays — one slot per star
     private final double[] sx, sy, sz;
     private final double[] travelSpeed;   // per-star speed multiplier (parallax depth)
@@ -209,6 +226,7 @@ public class StarfieldBehavior implements Behavior {
         }
 
         drawThrustHud(g);
+        if (input.showHelp) drawControlsHelp(g);
     }
 
     private void drawThrustHud(Graphics2D g) {
@@ -231,6 +249,33 @@ public class StarfieldBehavior implements Behavior {
         g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
         g.drawString(String.format("%.2f pc/s", speedParsecPerSec),
             GAUGE_X + GAUGE_WIDTH + 10, gaugeBottom);
+    }
+
+    private void drawControlsHelp(Graphics2D g) {
+        int panelWidth  = cx * 2;
+        int panelHeight = cy * 2;
+        int boxHeight   = 22 + HELP_ROWS.length * HELP_ROW_H;
+        int x = panelWidth  - HELP_WIDTH  - HELP_MARGIN;
+        int y = panelHeight - boxHeight   - HELP_MARGIN;
+
+        g.setColor(new Color(15, 18, 26, 140));
+        g.fillRoundRect(x, y, HELP_WIDTH, boxHeight, 10, 10);
+        g.setColor(new Color(255, 255, 255, 70));
+        g.drawRoundRect(x, y, HELP_WIDTH, boxHeight, 10, 10);
+
+        g.setFont(g.getFont().deriveFont(Font.BOLD, 12f));
+        g.setColor(new Color(255, 255, 255, 200));
+        g.drawString("Controles (H)", x + 12, y + 17);
+
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, 11f));
+        int rowY = y + 17 + HELP_ROW_H;
+        for (String[] row : HELP_ROWS) {
+            g.setColor(new Color(160, 200, 255, 220));
+            g.drawString(row[0], x + 12, rowY);
+            g.setColor(new Color(220, 220, 220, 200));
+            g.drawString(row[1], x + HELP_KEY_COL, rowY);
+            rowY += HELP_ROW_H;
+        }
     }
 
     // Cyan (idle) -> yellow (cruise) -> red (full thrust)

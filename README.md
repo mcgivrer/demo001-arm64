@@ -55,6 +55,7 @@ sdk env           # active la version du projet
 | CTRL                         | Augmente la puissance moteur (thrust) |
 | SHIFT                        | Diminue la puissance moteur (thrust)  |
 | ESCAPE                       | Quitter (boîte de confirmation Oui/Non) |
+| H                             | Afficher / masquer la grille d'aide des contrôles |
 
 En l'absence d'entrée, la caméra reprend sa dérive brownienne autonome.
 
@@ -62,6 +63,9 @@ La puissance moteur pilote la vitesse d'avancement du champ d'étoiles et s'affi
 dans le HUD en bas à gauche : une jauge verticale (cyan → jaune → rouge selon le
 régime) et une vitesse en parsecs/seconde, qui évolue proportionnellement à la
 puissance moteur.
+
+Un panneau d'aide semi-transparent, affiché par défaut en bas à droite, rappelle
+l'ensemble de ces contrôles ; la touche **H** bascule son affichage.
 
 ## Structure
 

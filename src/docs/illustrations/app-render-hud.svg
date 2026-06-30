@@ -39,7 +39,23 @@
   <rect x="21" y="486" width="12" height="50" fill="#ffe146"/>
   <text x="44" y="540" fill="#ffffff" font-size="13">7.00 pc/s</text>
 
+  <!-- === Controls help panel — bottom-right, matches StarfieldBehavior.drawControlsHelp() === -->
+  <!-- HELP_WIDTH=250  HELP_MARGIN=60 (from panel right/bottom)  boxHeight=22+8*16=150 -->
+  <rect x="490" y="390" width="250" height="150" rx="10" fill="#0f121a" fill-opacity="0.55"/>
+  <rect x="490" y="390" width="250" height="150" rx="10" fill="none" stroke="#ffffff" stroke-opacity="0.27" stroke-width="1"/>
+  <text x="502" y="407" fill="#ffffff" font-size="12" font-weight="bold">Controles (H)</text>
+  <g font-size="11">
+    <text x="502" y="423" fill="#a0c8ff">←→ / A D</text>      <text x="600" y="423" fill="#dcdcdc">Yaw</text>
+    <text x="502" y="439" fill="#a0c8ff">↑↓ / W S</text>      <text x="600" y="439" fill="#dcdcdc">Pitch</text>
+    <text x="502" y="455" fill="#a0c8ff">Q / E</text>          <text x="600" y="455" fill="#dcdcdc">Roll</text>
+    <text x="502" y="471" fill="#a0c8ff">SPACE</text>          <text x="600" y="471" fill="#dcdcdc">Frein</text>
+    <text x="502" y="487" fill="#a0c8ff">Clic + glisser</text><text x="600" y="487" fill="#dcdcdc">Joystick</text>
+    <text x="502" y="503" fill="#a0c8ff">CTRL / SHIFT</text>  <text x="600" y="503" fill="#dcdcdc">Thrust +/-</text>
+    <text x="502" y="519" fill="#a0c8ff">ESCAPE</text>         <text x="600" y="519" fill="#dcdcdc">Quitter</text>
+    <text x="502" y="535" fill="#a0c8ff">H</text>              <text x="600" y="535" fill="#dcdcdc">Afficher/masquer l'aide</text>
+  </g>
+
   <!-- caption -->
   <rect x="0" y="566" width="800" height="34" fill="#0d1117"/>
-  <text x="400" y="588" fill="#8b949e" font-size="12" text-anchor="middle">Rendu GamePanel — champ d'étoiles + HUD de propulsion (jauge de puissance + vitesse pc/s)</text>
+  <text x="400" y="588" fill="#8b949e" font-size="12" text-anchor="middle">Rendu GamePanel — champ d'étoiles + HUD de propulsion + grille d'aide des contrôles (touche H)</text>
 </svg>
