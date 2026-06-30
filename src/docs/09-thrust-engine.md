@@ -88,9 +88,9 @@ La vitesse affichée dans le HUD est une grandeur fictive, mais directement et
 linéairement dérivée de `enginePower` — donc elle évolue toujours de façon cohérente
 avec la sensation de vitesse réelle du champ d'étoiles :
 
-$$v_{\text{affichée}} = P \cdot v_{\max} \quad \text{avec } v_{\max} = 14\ \text{pc/s (}\texttt{MAX\_SPEED\_PARSEC}\text{)}$$
+$$v_{\text{affichée}} = P \cdot v_{\max} \quad \text{avec } v_{\max} = 70\ \text{pc/s (}\texttt{MAX\_SPEED\_PARSEC}\text{)}$$
 
-À puissance de croisière (0.5), la vitesse affichée est donc 7,00 pc/s.
+À puissance de croisière (0.5), la vitesse affichée est donc 35,00 pc/s.
 
 ---
 

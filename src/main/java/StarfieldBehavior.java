@@ -18,7 +18,7 @@ public class StarfieldBehavior implements Behavior {
     private static final double MIN_THRUST      = 0.0;
     private static final double MAX_THRUST      = 1.0;
     private static final double INITIAL_THRUST  = 0.5;  // cruise power — matches the original fixed TRAVEL_SPEED
-    private static final double MAX_SPEED_PARSEC = 14.0; // fictional top speed, displayed at full thrust
+    private static final double MAX_SPEED_PARSEC = 70.0; // fictional top speed, displayed at full thrust
 
     private static final int    GAUGE_X      = 20;
     private static final int    GAUGE_WIDTH  = 14;

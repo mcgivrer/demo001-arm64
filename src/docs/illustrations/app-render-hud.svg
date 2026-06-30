@@ -37,7 +37,7 @@
   <rect x="20" y="436" width="14" height="100" fill="none" stroke="#ffffff" stroke-opacity="0.43" stroke-width="1.4"/>
   <!-- fill at ~50% (cruise power, enginePower = 0.5) — yellow zone -->
   <rect x="21" y="486" width="12" height="50" fill="#ffe146"/>
-  <text x="44" y="540" fill="#ffffff" font-size="13">7.00 pc/s</text>
+  <text x="44" y="540" fill="#ffffff" font-size="13">35.00 pc/s</text>
 
   <!-- === Controls help panel — bottom-right, matches StarfieldBehavior.drawControlsHelp() === -->
   <!-- HELP_WIDTH=250  HELP_MARGIN=60 (from panel right/bottom)  boxHeight=22+8*16=150 -->
