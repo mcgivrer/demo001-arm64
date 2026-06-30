@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400" font-family="monospace, sans-serif">
+  <rect width="760" height="400" fill="#0d1117"/>
+  <text x="380" y="30" fill="#e6edf3" font-size="15" font-weight="bold" text-anchor="middle">Axes de rotation de la caméra — Yaw / Pitch / Roll</text>
+
+  <!-- === YAW panel === -->
+  <rect x="20" y="50" width="220" height="300" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="130" y="75" fill="#79c0ff" font-size="13" font-weight="bold" text-anchor="middle">Yaw (lacet)</text>
+  <text x="130" y="91" fill="#8b949e" font-size="10" text-anchor="middle">Rotation autour de Y</text>
+
+  <!-- observer dot -->
+  <circle cx="130" cy="200" r="8" fill="#f78166"/>
+  <text x="148" y="204" fill="#f78166" font-size="10">observateur</text>
+
+  <!-- Y axis (vertical) -->
+  <line x1="130" y1="130" x2="130" y2="280" stroke="#56d364" stroke-width="2" marker-end="url(#arrY)"/>
+  <text x="138" y="125" fill="#56d364" font-size="11" font-weight="bold">Y</text>
+
+  <!-- yaw arc -->
+  <ellipse cx="130" cy="200" rx="55" ry="18" fill="none" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <path d="M 185 200 A 55 18 0 0 1 130 182" fill="none" stroke="#79c0ff" stroke-width="2" marker-end="url(#arrBlue)"/>
+  <text x="172" y="172" fill="#79c0ff" font-size="10">ωY</text>
+  <text x="130" y="330" fill="#8b949e" font-size="9" text-anchor="middle">balayage gauche/droite</text>
+  <text x="130" y="343" fill="#6e7681" font-size="9" text-anchor="middle">velYaw ∈ [−0.35, 0.35] rad/s</text>
+
+  <!-- === PITCH panel === -->
+  <rect x="270" y="50" width="220" height="300" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="380" y="75" fill="#ffa657" font-size="13" font-weight="bold" text-anchor="middle">Pitch (tangage)</text>
+  <text x="380" y="91" fill="#8b949e" font-size="10" text-anchor="middle">Rotation autour de X</text>
+
+  <circle cx="380" cy="200" r="8" fill="#f78166"/>
+
+  <!-- X axis (horizontal) -->
+  <line x1="310" y1="200" x2="450" y2="200" stroke="#ff7b72" stroke-width="2" marker-end="url(#arrX)"/>
+  <text x="458" y="204" fill="#ff7b72" font-size="11" font-weight="bold">X</text>
+
+  <!-- pitch arc -->
+  <ellipse cx="380" cy="200" rx="18" ry="55" fill="none" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <path d="M 380 145 A 18 55 0 0 1 398 200" fill="none" stroke="#ffa657" stroke-width="2" marker-end="url(#arrOrange)"/>
+  <text x="402" y="158" fill="#ffa657" font-size="10">ωP</text>
+  <text x="380" y="330" fill="#8b949e" font-size="9" text-anchor="middle">balayage haut/bas</text>
+  <text x="380" y="343" fill="#6e7681" font-size="9" text-anchor="middle">velPitch ∈ [−0.35, 0.35] rad/s</text>
+
+  <!-- === ROLL panel === -->
+  <rect x="520" y="50" width="220" height="300" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="630" y="75" fill="#d2a8ff" font-size="13" font-weight="bold" text-anchor="middle">Roll (roulis)</text>
+  <text x="630" y="91" fill="#8b949e" font-size="10" text-anchor="middle">Rotation autour de Z</text>
+
+  <circle cx="630" cy="200" r="8" fill="#f78166"/>
+
+  <!-- Z axis (toward viewer — shown as circle with dot) -->
+  <circle cx="630" cy="200" r="55" fill="none" stroke="#b083f0" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <path d="M 630 145 A 55 55 0 0 1 685 200" fill="none" stroke="#d2a8ff" stroke-width="2" marker-end="url(#arrPurple)"/>
+  <!-- Z dot (axis toward viewer) -->
+  <circle cx="630" cy="200" r="14" fill="none" stroke="#d2a8ff" stroke-width="1.5"/>
+  <circle cx="630" cy="200" r="3" fill="#d2a8ff"/>
+  <text x="610" y="185" fill="#d2a8ff" font-size="11" font-weight="bold">Z</text>
+  <text x="688" y="168" fill="#d2a8ff" font-size="10">ωR</text>
+  <text x="630" y="330" fill="#8b949e" font-size="9" text-anchor="middle">rotation de l'horizon</text>
+  <text x="630" y="343" fill="#6e7681" font-size="9" text-anchor="middle">velRoll ∈ [−0.35, 0.35] rad/s</text>
+
+  <!-- Bottom note -->
+  <rect x="20" y="368" width="720" height="26" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="380" y="385" fill="#8b949e" font-size="10" text-anchor="middle">Les 3 vitesses angulaires subissent une dérive brownienne discrète : ωₙ₊₁ = clamp(ωₙ + 𝒩(0,σ²)·Δt,  −0.35,  0.35)  avec σ = 0.06 rad/s²</text>
+
+  <defs>
+    <marker id="arrY" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#56d364"/>
+    </marker>
+    <marker id="arrX" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#ff7b72"/>
+    </marker>
+    <marker id="arrBlue" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#79c0ff"/>
+    </marker>
+    <marker id="arrOrange" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#ffa657"/>
+    </marker>
+    <marker id="arrPurple" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L0,8 L8,4 z" fill="#d2a8ff"/>
+    </marker>
+  </defs>
+</svg>

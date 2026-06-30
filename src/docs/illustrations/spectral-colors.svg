@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 340" width="760" height="340" font-family="monospace, sans-serif">
+  <rect width="760" height="340" fill="#0d1117"/>
+  <text x="380" y="30" fill="#e6edf3" font-size="15" font-weight="bold" text-anchor="middle">Classification spectrale de Harvard — Couleurs et probabilités</text>
+
+  <!-- Stars + bars for each spectral type -->
+  <!-- M — Red dwarf -->
+  <circle cx="80" cy="90" r="28" fill="rgba(255,140,80,0.15)"/>
+  <circle cx="80" cy="90" r="18" fill="rgba(255,140,80,0.4)"/>
+  <circle cx="80" cy="90" r="10" fill="rgb(255,140,80)"/>
+  <text x="80" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">M</text>
+  <text x="80" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Naine rouge</text>
+  <text x="80" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">76 %</text>
+  <text x="80" y="180" fill="#6e7681" font-size="9" text-anchor="middle">2400–3700 K</text>
+  <rect x="56" y="192" width="48" height="10" rx="2" fill="rgb(255,140,80)"/>
+
+  <!-- K — Orange -->
+  <circle cx="190" cy="90" r="22" fill="rgba(255,185,110,0.15)"/>
+  <circle cx="190" cy="90" r="14" fill="rgba(255,185,110,0.4)"/>
+  <circle cx="190" cy="90" r="8" fill="rgb(255,185,110)"/>
+  <text x="190" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">K</text>
+  <text x="190" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Orange</text>
+  <text x="190" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">12 %</text>
+  <text x="190" y="180" fill="#6e7681" font-size="9" text-anchor="middle">3700–5200 K</text>
+  <rect x="166" y="192" width="48" height="10" rx="2" fill="rgb(255,185,110)"/>
+
+  <!-- G — Yellow / Sun -->
+  <circle cx="300" cy="90" r="20" fill="rgba(255,235,195,0.15)"/>
+  <circle cx="300" cy="90" r="13" fill="rgba(255,235,195,0.4)"/>
+  <circle cx="300" cy="90" r="7" fill="rgb(255,235,195)"/>
+  <text x="300" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">G</text>
+  <text x="300" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Jaune / Soleil</text>
+  <text x="300" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">7.6 %</text>
+  <text x="300" y="180" fill="#6e7681" font-size="9" text-anchor="middle">5200–6000 K</text>
+  <rect x="276" y="192" width="48" height="10" rx="2" fill="rgb(255,235,195)"/>
+
+  <!-- F — Yellow-white -->
+  <circle cx="410" cy="90" r="18" fill="rgba(245,245,255,0.1)"/>
+  <circle cx="410" cy="90" r="12" fill="rgba(245,245,255,0.3)"/>
+  <circle cx="410" cy="90" r="6" fill="rgb(245,245,255)"/>
+  <text x="410" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">F</text>
+  <text x="410" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Blanc-jaune</text>
+  <text x="410" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">3.0 %</text>
+  <text x="410" y="180" fill="#6e7681" font-size="9" text-anchor="middle">6000–7500 K</text>
+  <rect x="386" y="192" width="48" height="10" rx="2" fill="rgb(245,245,255)"/>
+
+  <!-- A — White -->
+  <circle cx="520" cy="90" r="17" fill="rgba(200,215,255,0.12)"/>
+  <circle cx="520" cy="90" r="11" fill="rgba(200,215,255,0.35)"/>
+  <circle cx="520" cy="90" r="6" fill="rgb(200,215,255)"/>
+  <text x="520" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">A</text>
+  <text x="520" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Blanc</text>
+  <text x="520" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">0.6 %</text>
+  <text x="520" y="180" fill="#6e7681" font-size="9" text-anchor="middle">7500–10000 K</text>
+  <rect x="496" y="192" width="48" height="10" rx="2" fill="rgb(200,215,255)"/>
+
+  <!-- B — Blue-white -->
+  <circle cx="620" cy="90" r="20" fill="rgba(170,191,255,0.12)"/>
+  <circle cx="620" cy="90" r="13" fill="rgba(170,191,255,0.35)"/>
+  <circle cx="620" cy="90" r="7" fill="rgb(170,191,255)"/>
+  <text x="620" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">B</text>
+  <text x="620" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Bleu-blanc</text>
+  <text x="620" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">0.1 %</text>
+  <text x="620" y="180" fill="#6e7681" font-size="9" text-anchor="middle">10000–30000 K</text>
+  <rect x="596" y="192" width="48" height="10" rx="2" fill="rgb(170,191,255)"/>
+
+  <!-- O — Blue giant -->
+  <circle cx="710" cy="90" r="28" fill="rgba(155,176,255,0.15)"/>
+  <circle cx="710" cy="90" r="20" fill="rgba(155,176,255,0.35)"/>
+  <circle cx="710" cy="90" r="12" fill="rgb(155,176,255)"/>
+  <!-- glow for O type -->
+  <circle cx="710" cy="90" r="34" fill="none" stroke="rgba(155,176,255,0.2)" stroke-width="6"/>
+  <text x="710" y="136" fill="#e6edf3" font-size="13" font-weight="bold" text-anchor="middle">O</text>
+  <text x="710" y="152" fill="#8b949e" font-size="10" text-anchor="middle">Géante bleue</text>
+  <text x="710" y="166" fill="#cdd9e5" font-size="11" font-weight="bold" text-anchor="middle">0.07 %</text>
+  <text x="710" y="180" fill="#6e7681" font-size="9" text-anchor="middle">&gt; 30000 K</text>
+  <rect x="686" y="192" width="48" height="10" rx="2" fill="rgb(155,176,255)"/>
+
+  <!-- Gradient temperature bar -->
+  <text x="380" y="230" fill="#8b949e" font-size="10" text-anchor="middle">Température de surface →</text>
+  <defs>
+    <linearGradient id="tempGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="rgb(255,100,60)"/>
+      <stop offset="30%" stop-color="rgb(255,200,130)"/>
+      <stop offset="55%" stop-color="rgb(255,240,200)"/>
+      <stop offset="70%" stop-color="rgb(220,230,255)"/>
+      <stop offset="85%" stop-color="rgb(180,200,255)"/>
+      <stop offset="100%" stop-color="rgb(155,176,255)"/>
+    </linearGradient>
+  </defs>
+  <rect x="40" y="238" width="680" height="18" rx="4" fill="url(#tempGrad)"/>
+  <text x="40" y="272" fill="#8b949e" font-size="9">froide (2 400 K)</text>
+  <text x="680" y="272" fill="#cdd9e5" font-size="9" text-anchor="end">chaude (&gt; 30 000 K)</text>
+
+  <!-- Probability bar (log scale visual) -->
+  <text x="40" y="298" fill="#8b949e" font-size="10">Probabilité d'occurrence (proportionnelle) :</text>
+  <rect x="40" y="308" width="517" height="12" rx="2" fill="rgb(255,140,80)" opacity="0.85"/>
+  <rect x="557" y="308" width="82" height="12" rx="2" fill="rgb(255,185,110)" opacity="0.85"/>
+  <rect x="639" y="308" width="52" height="12" rx="2" fill="rgb(255,235,195)" opacity="0.85"/>
+  <rect x="691" y="308" width="20" height="12" rx="2" fill="rgb(245,245,255)" opacity="0.85"/>
+  <rect x="711" y="308" width="4" height="12" rx="1" fill="rgb(200,215,255)" opacity="0.85"/>
+  <rect x="715" y="308" width="2" height="12" rx="1" fill="rgb(170,191,255)" opacity="0.85"/>
+  <rect x="717" y="308" width="1" height="12" rx="1" fill="rgb(155,176,255)" opacity="0.85"/>
+  <text x="297" y="322" fill="#0d1117" font-size="9" text-anchor="middle" font-weight="bold">M 76%</text>
+  <text x="598" y="322" fill="#0d1117" font-size="9" text-anchor="middle">K 12%</text>
+</svg>

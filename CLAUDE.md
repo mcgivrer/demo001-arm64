@@ -28,3 +28,34 @@ This project uses a custom `build.sh` script instead of Maven or Gradle. Java 26
 ## Application entry point
 
 `Main.java` follows a constructor-init / `run(args)` lifecycle. The constructor loads `config.properties` and the `ResourceBundle`, resolving the locale from `app.language.default`. `run()` prints CLI args then dispatches window creation to the Swing EDT via `SwingUtilities.invokeLater`. The JVM stays alive through the EDT (non-daemon thread); `JFrame.EXIT_ON_CLOSE` handles shutdown.
+
+## Technical documentation
+
+All technical documentation lives in `src/docs/`, one Markdown file per chapter (class or concept). **This documentation must be kept up to date with every code change** — if a class is modified, its chapter must be updated in the same work session.
+
+### Chapter map
+
+| File | Class / Concept |
+|------|----------------|
+| `01-architecture.md` | Overall architecture, class diagram, application lifecycle |
+| `02-entity-behavior.md` | Entity / Behavior composition pattern |
+| `03-particle-system.md` | ParticleSystem |
+| `04-spectral-classification.md` | Harvard spectral classification, star colours |
+| `05-rotations-3d.md` | 3D rotations (Yaw/Pitch/Roll), Brownian drift |
+| `06-perspective-projection.md` | Perspective projection, inverse-square brightness, glow |
+| `07-game-loop.md` | Swing game loop, EDT, delta-time |
+
+### Documentation rules
+
+Each chapter must contain:
+- **Explanatory prose** — describe the concept, its motivation, and its role in the project.
+- **Mermaid diagrams** — class diagrams, sequence diagrams, flowcharts (fenced ` ```mermaid ` blocks).
+- **PlantUML diagrams** — detailed UML (fenced ` ```plantuml ` blocks with `@startuml`/`@enduml`).
+- **MathML notation** — for all mathematical formulas and physical laws (inline `<math>` blocks or `$$` LaTeX-style for renderers that support it).
+- **SVG illustrations** — stored in `src/docs/illustrations/` and referenced with a relative path `![label](illustrations/file.svg)`.
+
+### Adding a new class or concept
+
+1. Create `src/docs/NN-<slug>.md` following the chapter structure above.
+2. Add any SVG illustration to `src/docs/illustrations/`.
+3. Add the new chapter to the table above in this file.
