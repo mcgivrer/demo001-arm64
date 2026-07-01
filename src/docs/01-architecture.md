@@ -85,8 +85,10 @@ classDiagram
 
     class MagellanicCloudsBehavior {
         -double[] vx, vy, vz
-        -float[] size, alpha
+        -float[] size
+        -int[] variant
         -BufferedImage[] sprites
+        -BufferedImage cache
         +update(Entity, double dt)
         +draw(Entity, Graphics2D)
     }

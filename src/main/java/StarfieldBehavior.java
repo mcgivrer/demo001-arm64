@@ -1,5 +1,5 @@
 import java.awt.*;
-import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 
 public class StarfieldBehavior implements Behavior {
@@ -8,6 +8,14 @@ public class StarfieldBehavior implements Behavior {
     private static final double RANGE        = 2.0;
     private static final double NEAR_Z       = 0.06;
     private static final double TRAVEL_SPEED = 0.20;  // base forward speed (units/s at z=1)
+
+    // Star sprites: filling per-star Ellipse2D shapes costs ~25 ms/frame in
+    // software rendering (generic shape rasterisation); pre-rendered sprite
+    // blits bring the whole starfield under ~2 ms. Core + glow live in the
+    // same radial gradient, one variant per (spectral type, alpha level).
+    private static final int   STAR_SPRITE_SIZE  = 40;   // sprite resolution (px)
+    private static final int   STAR_ALPHA_LEVELS = 16;   // quantised brightness levels
+    private static final float GLOW_FACTOR       = 2.5f; // glow radius / core radius
 
     private static final double NAME_PROBABILITY = 0.25; // fraction of stars that get a name
     private static final double NAME_Z_THRESHOLD = 1.00; // label fades in below this depth
@@ -53,9 +61,14 @@ public class StarfieldBehavior implements Behavior {
     // Parallel arrays — one slot per star
     private final double[] sx, sy, sz;
     private final double[] travelSpeed;   // per-star speed multiplier (parallax depth)
-    private final Color[]  starColor;
+    private final int[]    spectralIdx;   // index into SPECTRAL_TYPES / sprite tints
     private final float[]  brightness, baseSize;
     private final String[] starName;      // procedural name, or null for anonymous stars
+
+    // Pre-rendered star sprites [spectral type × alpha level] and the matching
+    // quantised colours for the sub-pixel fillRect path
+    private final BufferedImage[] starSprites;
+    private final Color[]         subPixelColors;
 
     // Engine power throttle, 0 (idle) .. 1 (full thrust)
     private double enginePower = INITIAL_THRUST;
@@ -97,12 +110,54 @@ public class StarfieldBehavior implements Behavior {
         sy          = new double[STAR_COUNT];
         sz          = new double[STAR_COUNT];
         travelSpeed = new double[STAR_COUNT];
-        starColor   = new Color[STAR_COUNT];
+        spectralIdx = new int[STAR_COUNT];
         brightness  = new float[STAR_COUNT];
         baseSize    = new float[STAR_COUNT];
         starName    = new String[STAR_COUNT];
 
+        starSprites    = new BufferedImage[SPECTRAL_TYPES.length * STAR_ALPHA_LEVELS];
+        subPixelColors = new Color[SPECTRAL_TYPES.length * STAR_ALPHA_LEVELS];
+        for (int t = 0; t < SPECTRAL_TYPES.length; t++) {
+            double[] spec = SPECTRAL_TYPES[t];
+            for (int l = 0; l < STAR_ALPHA_LEVELS; l++) {
+                float alpha = (l + 1f) / STAR_ALPHA_LEVELS;
+                int idx = t * STAR_ALPHA_LEVELS + l;
+                starSprites[idx] = makeStarSprite(
+                    (int) spec[1], (int) spec[2], (int) spec[3], alpha);
+                subPixelColors[idx] = new Color(
+                    (int) spec[1], (int) spec[2], (int) spec[3], (int) (alpha * 255));
+            }
+        }
+
         for (int i = 0; i < STAR_COUNT; i++) initStar(i, true);
+    }
+
+    /**
+     * Radial star sprite: hard bright core in the inner 1/GLOW_FACTOR of the
+     * radius, then a fast falloff into a faint diffuse glow. The brightness
+     * level is baked into the pixels (premultiplied ARGB) so drawing needs no
+     * per-star AlphaComposite.
+     */
+    private static BufferedImage makeStarSprite(int r, int g, int b, float alpha) {
+        BufferedImage img = new BufferedImage(STAR_SPRITE_SIZE, STAR_SPRITE_SIZE,
+                                              BufferedImage.TYPE_INT_ARGB_PRE);
+        Graphics2D g2 = img.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON);
+        float half = STAR_SPRITE_SIZE / 2f;
+        float core = 1f / GLOW_FACTOR;   // core/glow boundary, fraction of radius
+        g2.setPaint(new RadialGradientPaint(
+            half, half, half,
+            new float[] {0f, core * 0.9f, core * 1.15f, 1f},
+            new Color[] {
+                new Color(r, g, b, (int) (255 * alpha)),
+                new Color(r, g, b, (int) (255 * alpha)),
+                new Color(r, g, b, (int) (60 * alpha)),
+                new Color(r, g, b, 0),
+            }));
+        g2.fillRect(0, 0, STAR_SPRITE_SIZE, STAR_SPRITE_SIZE);
+        g2.dispose();
+        return img;
     }
 
     /**
@@ -129,11 +184,12 @@ public class StarfieldBehavior implements Behavior {
             : RANGE * (0.7 + gen.nextDouble() * 0.3);
 
         double r = gen.nextDouble();
-        double[] spec = SPECTRAL_TYPES[SPECTRAL_TYPES.length - 1];
-        for (double[] s : SPECTRAL_TYPES) {
-            if (r < s[0]) { spec = s; break; }
+        int specI = SPECTRAL_TYPES.length - 1;
+        for (int s = 0; s < SPECTRAL_TYPES.length; s++) {
+            if (r < SPECTRAL_TYPES[s][0]) { specI = s; break; }
         }
-        starColor[i]   = new Color((int) spec[1], (int) spec[2], (int) spec[3]);
+        double[] spec  = SPECTRAL_TYPES[specI];
+        spectralIdx[i] = specI;
         brightness[i]  = (float) (spec[4] + gen.nextDouble() * (1.0 - spec[4]));
         baseSize[i]    = (float) (spec[5]  * (0.7 + gen.nextDouble() * 0.6));
         // Speed multiplier: range 0.4–1.6, independent of position → true parallax
@@ -206,29 +262,24 @@ public class StarfieldBehavior implements Behavior {
 
             // Apparent brightness — inverse-square law (reference distance = 1)
             float ab = Math.clamp((float) (brightness[i] / (z * z)), 0f, 1f);
-            int alpha = (int) (ab * 255);
-            if (alpha < 8) continue;
+            if (ab * 255 < 8) continue;
 
             // Perspective-scaled radius
             float r = Math.clamp((float) (baseSize[i] / z), 0.4f, 8f);
 
-            Color c = starColor[i];
-            g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
+            int level   = Math.min(STAR_ALPHA_LEVELS - 1, (int) (ab * STAR_ALPHA_LEVELS));
+            int variant = spectralIdx[i] * STAR_ALPHA_LEVELS + level;
 
             if (r < 1.0f) {
                 // Sub-pixel star: single bright pixel
+                g.setColor(subPixelColors[variant]);
                 g.fillRect((int) px, (int) py, 1, 1);
             } else {
-                g.fill(new Ellipse2D.Float((float) px - r, (float) py - r, r * 2, r * 2));
-
-                // Diffuse glow for luminous nearby stars (O, B, A types at close range)
-                if (r > 2.0f && ab > 0.6f) {
-                    float gr = r * 2.5f;
-                    g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(),
-                                         (int) (ab * 55)));
-                    g.fill(new Ellipse2D.Float((float) px - gr, (float) py - gr,
-                                               gr * 2, gr * 2));
-                }
+                // One sprite blit renders core + diffuse glow together
+                float gr = r * GLOW_FACTOR;
+                g.drawImage(starSprites[variant],
+                            (int) (px - gr), (int) (py - gr),
+                            (int) (gr * 2), (int) (gr * 2), null);
             }
         }
 

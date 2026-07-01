@@ -114,15 +114,44 @@ $$r = \text{clamp}\!\left(\frac{s_i}{z},\; 0.4,\; 8\right) \text{ px}$$
 
 ---
 
-## Halo de diffusion (glow)
+## Rendu par sprites : cœur + halo en un seul blit
 
-Pour les étoiles lumineuses proches (types O, B, A), un disque de diffusion est
-superposé — rayon $2.5 \times r$, alpha réduit à $\approx 21\%$ de la luminosité
-apparente :
+Historiquement chaque étoile était dessinée par un ou deux `g.fill(new Ellipse2D)`
+(disque + halo pour les étoiles brillantes). Or la rasterisation générique de formes
+de Java2D coûte très cher en rendu logiciel : **~25 ms/frame** pour 500 étoiles sur
+l'Orange Pi — impossible d'atteindre 60 FPS.
 
-$$r_{\text{glow}} = 2.5 \cdot r, \qquad \alpha_{\text{glow}} = \lfloor L_{\text{app}} \times 55 \rfloor$$
+Le rendu utilise désormais des **sprites pré-rendus** : à la construction,
+`makeStarSprite()` génère un dégradé radial 40×40 (`TYPE_INT_ARGB_PRE`) par
+combinaison (type spectral × niveau de luminosité), soit 7 × 16 = 112 images
+(~700 Ko). Le dégradé encode à la fois le **cœur** (plateau opaque sur la fraction
+intérieure $1/2.5$ du rayon) et le **halo** de diffusion (chute rapide vers un
+voile à ~21 % puis zéro) :
 
-Condition de déclenchement : $r > 2.0\ \text{px}$ **ET** $L_{\text{app}} > 0.6$.
+$$r_{\text{sprite}} = 2.5 \cdot r, \qquad
+\text{stops} = \{0,\; 0.36,\; 0.46,\; 1\} \rightarrow
+\alpha = \{255,\; 255,\; 60,\; 0\} \times \alpha_{\text{niveau}}$$
+
+La luminosité apparente $L_{\text{app}} = b/z^2$ est **quantifiée sur 16 niveaux**
+pré-cuits dans les pixels du sprite — aucun `AlphaComposite` ni `new Color` par
+étoile, le dessin est un simple `drawImage` mis à l'échelle (~1-2 ns/pixel contre
+10-20× plus pour un `fill`). Coût mesuré : **~2,7 ms/frame** pour 500 étoiles.
+
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+  <mrow>
+    <mtext>niveau</mtext>
+    <mo>=</mo>
+    <mo>min</mo>
+    <mo>(</mo>
+    <mn>15</mn><mo>,</mo>
+    <mo>⌊</mo>
+    <msub><mi>L</mi><mtext>app</mtext></msub>
+    <mo>×</mo>
+    <mn>16</mn>
+    <mo>⌋</mo>
+    <mo>)</mo>
+  </mrow>
+</math>
 
 ---
 
@@ -138,25 +167,22 @@ flowchart TD
     D -- non --> E[Luminosité\nLapp = b/z²]
     E --> F{alpha < 8 ?}
     F -- oui --> Z
-    F -- non --> G[Rayon\nr = s/z]
+    F -- non --> G[Rayon r = s/z\nniveau = Lapp×16]
     G --> H{r < 1.0 ?}
-    H -- oui --> I[fillRect 1×1\nsub-pixel]
-    H -- non --> J[fill Ellipse2D\nr×2 diamètre]
-    J --> K{r > 2 AND\nLapp > 0.6 ?}
-    K -- oui --> L[Halo glow\nr×2.5, alpha/5]
-    K -- non --> M([étoile suivante])
-    I --> M
-    L --> M
+    H -- oui --> I[fillRect 1×1\ncouleur quantifiée]
+    H -- non --> J[drawImage sprite\ntype spectral × niveau\néchelle 2×2.5r]
+    I --> M([étoile suivante])
+    J --> M
 ```
 
 ---
 
 ## Rendu sub-pixel
 
-Les étoiles très lointaines ont un rayon $r < 1\ \text{px}$. Plutôt que de dessiner une
-ellipse d'un pixel (coûteux en anti-aliasing), on appelle `fillRect(px, py, 1, 1)` :
-un simple pixel de la couleur de l'étoile avec son alpha calculé. C'est suffisant pour
-restituer l'aspect granuleux du ciel profond.
+Les étoiles très lointaines ont un rayon $r < 1\ \text{px}$. Plutôt qu'un sprite
+réduit à un point, on appelle `fillRect(px, py, 1, 1)` avec la couleur quantifiée
+correspondante (`subPixelColors`, pré-allouées — zéro allocation par frame). C'est
+suffisant pour restituer l'aspect granuleux du ciel profond.
 
 ---
 
@@ -167,21 +193,21 @@ double px = cx + sx[i] / z * projScaleX;
 double py = cy + sy[i] / z * projScaleY;
 
 float ab = Math.clamp((float)(brightness[i] / (z * z)), 0f, 1f);
-int alpha = (int)(ab * 255);
-if (alpha < 8) continue;
+if (ab * 255 < 8) continue;
 
 float r = Math.clamp((float)(baseSize[i] / z), 0.4f, 8f);
-g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
+
+int level   = Math.min(STAR_ALPHA_LEVELS - 1, (int)(ab * STAR_ALPHA_LEVELS));
+int variant = spectralIdx[i] * STAR_ALPHA_LEVELS + level;
 
 if (r < 1.0f) {
+    g.setColor(subPixelColors[variant]);
     g.fillRect((int) px, (int) py, 1, 1);
 } else {
-    g.fill(new Ellipse2D.Float((float)px - r, (float)py - r, r * 2, r * 2));
-    if (r > 2.0f && ab > 0.6f) {
-        float gr = r * 2.5f;
-        g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), (int)(ab * 55)));
-        g.fill(new Ellipse2D.Float((float)px - gr, (float)py - gr, gr * 2, gr * 2));
-    }
+    // Un seul blit rend le cœur et le halo ensemble
+    float gr = r * GLOW_FACTOR;
+    g.drawImage(starSprites[variant],
+                (int)(px - gr), (int)(py - gr), (int)(gr * 2), (int)(gr * 2), null);
 }
 ```
 

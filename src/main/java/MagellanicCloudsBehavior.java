@@ -11,11 +11,19 @@ import java.util.Random;
  * {@link CameraState}) but never translate with forward travel, so the
  * clouds form a stable backdrop behind the starfield.
  *
- * <p>Rendering optimisation: each puff's translucency is <b>pre-baked</b>
- * into a small sprite variant (3 tints × 8 quantised alpha levels, rendered
- * once at construction, premultiplied ARGB). The draw loop is then plain
- * scaled {@code drawImage} calls — no per-puff {@code AlphaComposite}, which
- * would force Java2D through its slow general compositing path.
+ * <p>Rendering optimisations:
+ * <ul>
+ * <li>Each puff's translucency is <b>pre-baked</b> into a small sprite
+ *     variant (3 tints × 8 quantised alpha levels, premultiplied ARGB) — the
+ *     puff pass is plain scaled {@code drawImage} calls, no per-puff
+ *     {@code AlphaComposite} (Java2D's slow general compositing path).</li>
+ * <li>The composed layer is <b>cached</b> in a half-resolution off-screen
+ *     buffer. The overlapping-puff overdraw (up to ~12 ms/frame when a cloud
+ *     fills the view) is only paid when the camera has rotated enough since
+ *     the last refresh; every other frame is a single scaled blit. Half
+ *     resolution is invisible on such soft gradients and quarters the
+ *     refresh cost.</li>
+ * </ul>
  */
 public class MagellanicCloudsBehavior implements Behavior {
 
@@ -32,6 +40,10 @@ public class MagellanicCloudsBehavior implements Behavior {
     private static final double MIN_Z        = 0.15;  // cull puffs close to / behind the view plane
     private static final int    SPRITE_SIZE  = 32;    // base soft-sprite resolution (px)
     private static final float  MAX_RADIUS   = 220f;  // projected puff radius cap (px)
+
+    private static final int    CACHE_SCALE        = 2;      // off-screen buffer at panel/2
+    private static final double REFRESH_ROT_EPS    = 0.002;  // rad — ≈ 0.7 px of screen motion
+    private static final int    REFRESH_MIN_FRAMES = 4;      // amortises worst-case refresh cost
 
     // Quantised translucency levels covering body (0.03–0.11) and HII (0.16–0.30)
     private static final float[] ALPHA_LEVELS = {
@@ -56,12 +68,23 @@ public class MagellanicCloudsBehavior implements Behavior {
     private final int    cx, cy;
     private final double projScaleX, projScaleY;
 
+    // Half-resolution screen cache of the composed layer
+    private final BufferedImage cache;
+    private double  rotSinceRefresh;   // accumulated |yaw|+|pitch|+|roll| since last refresh
+    private int     framesSinceRefresh;
+    private boolean cacheValid;
+    // Content bounding box inside the cache (cache pixels) — limits the blit
+    private int bbMinX, bbMinY, bbMaxX, bbMaxY;
+
     public MagellanicCloudsBehavior(int width, int height, CameraState camera, long seed) {
         this.camera = camera;
         cx = width  / 2;
         cy = height / 2;
         projScaleX = width  * 0.45;
         projScaleY = height * 0.45;
+        cache = new BufferedImage(Math.max(1, width / CACHE_SCALE),
+                                  Math.max(1, height / CACHE_SCALE),
+                                  BufferedImage.TYPE_INT_ARGB_PRE);
 
         sprites = new BufferedImage[TINTS.length * ALPHA_LEVELS.length];
         for (int t = 0; t < TINTS.length; t++) {
@@ -299,26 +322,63 @@ public class MagellanicCloudsBehavior implements Behavior {
 
             vx[i] = x; vy[i] = y; vz[i] = z;
         }
+
+        rotSinceRefresh += Math.abs(camera.frameYaw) + Math.abs(camera.framePitch)
+                         + Math.abs(camera.frameRoll);
+        framesSinceRefresh++;
     }
 
     @Override
     public void draw(Entity entity, Graphics2D g) {
-        int panelW = cx * 2, panelH = cy * 2;
+        if (!cacheValid
+            || (rotSinceRefresh > REFRESH_ROT_EPS && framesSinceRefresh >= REFRESH_MIN_FRAMES)) {
+            refreshCache();
+        }
+        if (bbMaxX <= bbMinX || bbMaxY <= bbMinY) return;   // nothing visible
+
+        // Single scaled blit of the content bounding box — bounded per-frame cost
+        g.drawImage(cache,
+                    bbMinX * CACHE_SCALE, bbMinY * CACHE_SCALE,
+                    bbMaxX * CACHE_SCALE, bbMaxY * CACHE_SCALE,
+                    bbMinX, bbMinY, bbMaxX, bbMaxY, null);
+    }
+
+    /** Re-composes all visible puffs into the half-resolution cache. */
+    private void refreshCache() {
+        int cw = cache.getWidth(), ch = cache.getHeight();
+        double ccx = cw / 2.0, ccy = ch / 2.0;
+        double scaleX = projScaleX / CACHE_SCALE, scaleY = projScaleY / CACHE_SCALE;
+        int minX = cw, minY = ch, maxX = 0, maxY = 0;
+
+        Graphics2D g = cache.createGraphics();
+        g.setComposite(AlphaComposite.Clear);
+        g.fillRect(0, 0, cw, ch);
+        g.setComposite(AlphaComposite.SrcOver);
 
         for (int i = 0; i < vx.length; i++) {
             double z = vz[i];
             if (z < MIN_Z) continue;
 
-            double px = cx + vx[i] / z * projScaleX;
-            double py = cy + vy[i] / z * projScaleY;
-            float  r  = Math.min((float) (size[i] / z * projScaleX), MAX_RADIUS);
+            double px = ccx + vx[i] / z * scaleX;
+            double py = ccy + vy[i] / z * scaleY;
+            float  r  = Math.min((float) (size[i] / z * scaleX), MAX_RADIUS / CACHE_SCALE);
 
-            if (px + r < 0 || px - r > panelW || py + r < 0 || py - r > panelH) continue;
+            if (px + r < 0 || px - r > cw || py + r < 0 || py - r > ch) continue;
 
+            int x0 = (int) (px - r), y0 = (int) (py - r);
+            int d  = (int) (r * 2);
             // Plain scaled blit — the puff's alpha is baked into the sprite
-            g.drawImage(sprites[variant[i]],
-                        (int) (px - r), (int) (py - r),
-                        (int) (r * 2), (int) (r * 2), null);
+            g.drawImage(sprites[variant[i]], x0, y0, d, d, null);
+
+            minX = Math.min(minX, x0);      minY = Math.min(minY, y0);
+            maxX = Math.max(maxX, x0 + d);  maxY = Math.max(maxY, y0 + d);
         }
+        g.dispose();
+
+        bbMinX = Math.max(0, minX);  bbMinY = Math.max(0, minY);
+        bbMaxX = Math.min(cw, maxX); bbMaxY = Math.min(ch, maxY);
+        rotSinceRefresh    = 0;
+        framesSinceRefresh = 0;
+        cacheValid         = true;
     }
 }

@@ -23,6 +23,8 @@ public class CameraState {
 
     // This frame's rotation, ready for consumption by behaviors
     public double cosYaw = 1, sinYaw, cosPitch = 1, sinPitch, cosRoll = 1, sinRoll;
+    // Same rotation as raw angles (rad) — lets consumers track accumulated motion
+    public double frameYaw, framePitch, frameRoll;
 
     public CameraState(InputState input, long seed) {
         this.input    = input;
@@ -64,12 +66,12 @@ public class CameraState {
             velRoll  = Math.clamp(velRoll,  -MAX_VEL, MAX_VEL);
         }
 
-        double ay = velYaw   * dt;
-        double ap = velPitch * dt;
-        double ar = velRoll  * dt;
+        frameYaw   = velYaw   * dt;
+        framePitch = velPitch * dt;
+        frameRoll  = velRoll  * dt;
 
-        cosYaw   = Math.cos(ay); sinYaw   = Math.sin(ay);
-        cosPitch = Math.cos(ap); sinPitch = Math.sin(ap);
-        cosRoll  = Math.cos(ar); sinRoll  = Math.sin(ar);
+        cosYaw   = Math.cos(frameYaw);   sinYaw   = Math.sin(frameYaw);
+        cosPitch = Math.cos(framePitch); sinPitch = Math.sin(framePitch);
+        cosRoll  = Math.cos(frameRoll);  sinRoll  = Math.sin(frameRoll);
     }
 }

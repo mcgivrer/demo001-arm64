@@ -116,6 +116,7 @@ n'est pas affecté par les corrections d'horloge système (NTP, etc.).
 | Fréquence effective | ~60 fps | Dépend du scheduler et du temps de rendu |
 | Étoiles simulées | 500 | Coût O(N) par frame |
 | Opérations par étoile | 6 mul + 6 add (rotations) + 1 division (travel) | Pas de matrice allouée |
+| Budget rendu mesuré (pire cas) | ~5,7 ms/frame | ~2,7 ms étoiles (sprites, ch. 6) + ~2,7 ms nuages (cache, ch. 11) + clear |
 
 ### Afficheur de FPS
 
@@ -178,10 +179,13 @@ le contenu de la frame précédente avant de dessiner la nouvelle.
 
 ## Anti-aliasing et performance
 
-L'activation de `VALUE_ANTIALIAS_ON` améliore la qualité visuelle des ellipses mais
-a un coût CPU. Pour 500 étoiles à 60 fps, ce coût est négligeable sur du matériel
-moderne. Si les performances devenaient un enjeu, on pourrait désactiver l'AA pour les
-étoiles sub-pixel (déjà gérées par `fillRect` au lieu d'`Ellipse2D`).
+`VALUE_ANTIALIAS_ON` reste activé dans `paintComponent`, mais il ne concerne plus
+que le texte et les formes du HUD : les étoiles et les nuages sont des `drawImage`
+de sprites pré-rendus, insensibles à ce hint. La leçon de performance retenue
+(mesurée sur l'Orange Pi) : en rendu logiciel, un blit d'image coûte ~1-2 ns/pixel,
+alors que `g.fill(new Ellipse2D)` paie une rasterisation générique par forme —
+les 500 étoiles en ellipses coûtaient ~25 ms/frame, en sprites ~2,7 ms
+(voir [chapitre 6](06-perspective-projection.md)).
 
 ---
 
