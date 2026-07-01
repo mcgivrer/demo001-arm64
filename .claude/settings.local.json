@@ -9,7 +9,9 @@
       "Bash(echo \"started PID $!\")",
       "Bash(xwininfo *)",
       "Bash(xprop -root _NET_ACTIVE_WINDOW)",
-      "Bash(./build.sh)"
+      "Bash(./build.sh)",
+      "Bash(javac -cp target/classes -d /tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad /tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad/CloudTest.java)",
+      "Bash(java -Djava.awt.headless=true -cp target/classes:/tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad CloudTest)"
     ]
   }
 }

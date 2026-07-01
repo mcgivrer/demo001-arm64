@@ -72,9 +72,11 @@ démarrage : les 500 étoiles initiales occupent les indices 0–499, puis chaqu
 respawn consomme l'indice suivant. La n-ième étoile générée est donc identique
 d'une exécution à l'autre.
 
-> Le `Random` de champ (`rng`) subsiste, semé avec le seed maître, mais ne sert
-> plus qu'au **bruit brownien** de la dérive caméra (chapitre 5) — sa consommation
-> dépend du nombre de frames, il ne doit donc jamais alimenter la génération.
+> Le bruit brownien de la dérive caméra vit dans `CameraState` (`driftRng`, semé
+> avec le seed maître — chapitre 5). Sa consommation dépend du nombre de frames,
+> il ne doit donc jamais alimenter la génération. Les nuages d'arrière-plan
+> utilisent l'indice de sub-seed **négatif** `-1` (chapitre 11), qui ne peut
+> jamais entrer en collision avec `spawnCounter` (toujours ≥ 0).
 
 ```mermaid
 flowchart LR

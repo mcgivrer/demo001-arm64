@@ -55,7 +55,9 @@ ParticleSystem ..> StarfieldBehavior : <<new + addBehavior>>
 flowchart TD
     A([Main.initEntities]) --> B[new ParticleSystem\nwidth, height, input, seed]
     B --> C[super Entity\n0, 0, width, height]
-    C --> D[new StarfieldBehavior\nwidth, height, input, seed]
+    C --> K[new CameraState\ninput, seed]
+    K --> L[addBehavior\nMagellanicCloudsBehavior\narrière-plan]
+    L --> D[new StarfieldBehavior\nwidth, height, input, camera, seed]
     D --> E[initStar × 500\nscatter = true\nsub-seed par étoile]
     E --> F[addBehavior\nStarfieldBehavior]
     F --> G([Entité prête\ndans entities])
@@ -67,16 +69,34 @@ flowchart TD
 
 ```java
 public class ParticleSystem extends Entity {
+
+    private final CameraState camera;
+
     public ParticleSystem(int width, int height, InputState input, long seed) {
         super(0, 0, width, height);
-        addBehavior(new StarfieldBehavior(width, height, input, seed));
+        camera = new CameraState(input, seed);
+        // Insertion order = draw order: clouds behind, starfield in front
+        addBehavior(new MagellanicCloudsBehavior(width, height, camera, seed));
+        addBehavior(new StarfieldBehavior(width, height, input, camera, seed));
+    }
+
+    @Override
+    public void update(double dt) {
+        camera.update(dt);   // one camera integration per frame, before all behaviors
+        super.update(dt);
     }
 }
 ```
 
 Le paramètre `seed` provient de `config.properties` (`app.stars.seed`) et pilote toute
-la génération procédurale du champ d'étoiles — positions, types spectraux et noms
-(voir [10 — Génération procédurale](10-procedural-generation.md)).
+la génération procédurale — champ d'étoiles, noms et nuages de fond
+(voir [10 — Génération procédurale](10-procedural-generation.md) et
+[11 — Nuages de Magellan](11-magellanic-clouds.md)).
+
+`ParticleSystem` illustre désormais pleinement le pattern : **l'ordre d'insertion des
+`Behavior` est l'ordre de dessin** (les nuages derrière, les étoiles devant), et l'état
+partagé entre couches (`CameraState`) est intégré une seule fois par frame dans
+`update()` avant la mise à jour des comportements.
 
 La position `(0, 0)` et les dimensions `(width, height)` définissent le **domaine de
 l'entité** — ici la totalité du panneau graphique. `StarfieldBehavior` lit ces valeurs
@@ -87,21 +107,17 @@ et les facteurs d'échelle `projScaleX`, `projScaleY`.
 
 ## Extension possible
 
-Pour ajouter un deuxième effet visuel (ex. météores, nébuleuse), il suffit d'un second
-`addBehavior(...)` — sans modifier `Entity` ni `ParticleSystem` :
+Ce mécanisme d'extension est déjà exploité : `MagellanicCloudsBehavior` a été ajouté
+comme couche d'arrière-plan **sans modifier `Entity` ni `StarfieldBehavior`**
+(voir [chapitre 11](11-magellanic-clouds.md)). Tout effet supplémentaire (météores,
+poussière, vaisseaux…) suit le même schéma :
 
 ```java
-public class ParticleSystem extends Entity {
-    public ParticleSystem(int width, int height, InputState input, long seed) {
-        super(0, 0, width, height);
-        addBehavior(new StarfieldBehavior(width, height, input, seed));
-        addBehavior(new MeteorBehavior(width, height)); // futur comportement
-    }
-}
+addBehavior(new MeteorBehavior(width, height, camera, seed)); // futur comportement
 ```
 
-Les deux `Behavior` seront appelés séquentiellement à chaque frame, dans l'ordre
-d'insertion.
+Les `Behavior` sont appelés séquentiellement à chaque frame, dans l'ordre
+d'insertion — qui détermine aussi la superposition visuelle.
 
 ---
 

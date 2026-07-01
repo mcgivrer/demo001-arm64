@@ -72,8 +72,15 @@ $$\mathbf{p}' = R_Z(\alpha_R) \cdot R_X(\alpha_P) \cdot R_Y(\alpha_Y) \cdot \mat
 
 ## Contrôle des vitesses angulaires — mode hybride
 
-Les vitesses angulaires $\omega_Y$, $\omega_P$, $\omega_R$ (en rad/s) sont gérées selon
-trois modes exclusifs, par ordre de priorité (voir [chapitre 8](08-input-controls.md)) :
+Les vitesses angulaires $\omega_Y$, $\omega_P$, $\omega_R$ (en rad/s) vivent dans la
+classe **`CameraState`**, partagée entre le champ d'étoiles et les nuages de fond
+(voir [chapitre 11](11-magellanic-clouds.md)). `ParticleSystem.update()` intègre la
+caméra **une seule fois par frame**, avant tous les `Behavior`, et expose la rotation
+de la frame sous forme de paires cos/sin précalculées (`cosYaw`, `sinYaw`, …) que
+chaque couche consomme pour tourner en parfaite synchronisation.
+
+Trois modes exclusifs s'appliquent, par ordre de priorité
+(voir [chapitre 8](08-input-controls.md)) :
 
 1. **Frein** (SPACE) — décroissance exponentielle vers zéro.
 2. **Contrôle utilisateur** (flèches / WASD / Q-E / souris) — lerp vers une cible.
@@ -128,15 +135,15 @@ Quand $z \le z_{\min}$ (`NEAR_Z = 0.06`), l'étoile est **respawnée** à profon
 
 ```mermaid
 flowchart TD
-    A([update dt]) --> B{Mode ?}
+    A([CameraState.update dt]) --> B{Mode ?}
     B -- Frein SPACE --> C[Décroissance exponentielle\nω *= max(0, 1−8·dt)]
     B -- Clavier/Souris --> D[Lerp vers cible ω*\nω += (ω*-ω)·4·dt]
     B -- Aucune entrée --> E[Bruit gaussien brownien\nω += N·dt, clamp ±0.35]
     C --> F[Calcul angles frame\nα = vel × dt]
     D --> F
     E --> F
-    F --> G[Précalcul cos/sin\npour les 3 axes]
-    G --> H{Pour chaque\nétoile i}
+    F --> G[Précalcul cos/sin\npour les 3 axes\npartagé via CameraState]
+    G --> H{StarfieldBehavior :\npour chaque étoile i}
     H --> I[Rotation Yaw\nautour de Y]
     I --> J[Rotation Pitch\nautour de X]
     J --> K[Rotation Roll\nautour de Z]
@@ -152,23 +159,25 @@ flowchart TD
 ## Extrait de code — update
 
 ```java
-// Dérive brownienne
-velYaw   += rng.nextGaussian() * DRIFT_ACC * dt;
-velPitch += rng.nextGaussian() * DRIFT_ACC * dt;
-velRoll  += rng.nextGaussian() * DRIFT_ACC * dt;
+// CameraState.update(dt) — dérive brownienne
+velYaw   += driftRng.nextGaussian() * DRIFT_ACC * dt;
+velPitch += driftRng.nextGaussian() * DRIFT_ACC * dt;
+velRoll  += driftRng.nextGaussian() * DRIFT_ACC * dt;
 velYaw   = Math.clamp(velYaw,   -MAX_VEL, MAX_VEL);
 
 double ay = velYaw * dt, ap = velPitch * dt, ar = velRoll * dt;
-double cosY = Math.cos(ay), sinY = Math.sin(ay);
-// ...
+cosYaw = Math.cos(ay); sinYaw = Math.sin(ay);
+// ... exposé publiquement pour tous les Behavior
 
+// StarfieldBehavior.update() — consommation
+double cosY = camera.cosYaw, sinY = camera.sinYaw;
 // Yaw — rotation around Y axis
 double tx = x * cosY + z * sinY;
 double tz = -x * sinY + z * cosY;
 x = tx; z = tz;
 // + Pitch, Roll de manière similaire...
 
-// Forward travel
+// Forward travel (étoiles seulement — les nuages de fond sont à l'infini)
 z -= TRAVEL_SPEED * travelSpeed[i] / z * dt;
 ```
 

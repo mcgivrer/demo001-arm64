@@ -47,6 +47,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `08-input-controls.md` | InputState, GamePanel listeners, keyboard/mouse camera control |
 | `09-thrust-engine.md` | Engine power (thrust) throttle, speed/power HUD |
 | `10-procedural-generation.md` | Seed-based procedural star generation, star name generator, approach name labels |
+| `11-magellanic-clouds.md` | Magellanic-cloud background layer, shared CameraState |
 
 ### Documentation rules
 

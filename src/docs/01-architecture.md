@@ -63,6 +63,12 @@ classDiagram
         +ParticleSystem(int width, int height, InputState input, long seed)
     }
 
+    class CameraState {
+        -double velYaw, velPitch, velRoll
+        +double cosYaw, sinYaw, cosPitch, sinPitch, cosRoll, sinRoll
+        +update(double dt)
+    }
+
     class StarfieldBehavior {
         -double[] sx, sy, sz
         -double[] travelSpeed
@@ -71,11 +77,18 @@ classDiagram
         -String[] starName
         -long seed
         -long spawnCounter
-        -double velYaw, velPitch, velRoll
         +update(Entity, double dt)
         +draw(Entity, Graphics2D)
         -initStar(int i, boolean scatter)
         -subSeed(long seed, long n)$ long
+    }
+
+    class MagellanicCloudsBehavior {
+        -double[] vx, vy, vz
+        -float[] size, alpha
+        -BufferedImage[] sprites
+        +update(Entity, double dt)
+        +draw(Entity, Graphics2D)
     }
 
     class StarNameGenerator {
@@ -88,7 +101,12 @@ classDiagram
     Entity "1" --> "*" Behavior : délègue
     ParticleSystem --|> Entity : étend
     StarfieldBehavior ..|> Behavior : implémente
+    MagellanicCloudsBehavior ..|> Behavior : implémente
+    ParticleSystem --> CameraState : intègre 1×/frame
     ParticleSystem --> StarfieldBehavior : instancie
+    ParticleSystem --> MagellanicCloudsBehavior : instancie (arrière-plan)
+    StarfieldBehavior --> CameraState : lit cos/sin
+    MagellanicCloudsBehavior --> CameraState : lit cos/sin
     StarfieldBehavior --> StarNameGenerator : nomme les étoiles
 ```
 

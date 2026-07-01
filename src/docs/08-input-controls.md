@@ -43,6 +43,11 @@ classDiagram
         -confirmExit()
     }
 
+    class CameraState {
+        -InputState input
+        +update(double dt)
+    }
+
     class StarfieldBehavior {
         -InputState input
         +update(Entity, double dt)
@@ -51,11 +56,14 @@ classDiagram
     }
 
     GamePanel --> InputState : écrit
-    StarfieldBehavior --> InputState : lit
+    CameraState --> InputState : lit — rotation, frein, souris
+    StarfieldBehavior --> InputState : lit — thrust, aide
 ```
 
 `InputState` est un objet de valeur mutable partagé entre `GamePanel` (producteur)
-et `StarfieldBehavior` (consommateur). Comme `javax.swing.Timer` et les événements
+et deux consommateurs : `CameraState` (rotation yaw/pitch/roll, frein, joystick
+souris — voir [chapitre 5](05-rotations-3d.md)) et `StarfieldBehavior` (poussée
+moteur CTRL/SHIFT, affichage de l'aide). Comme `javax.swing.Timer` et les événements
 Swing s'exécutent tous sur l'EDT, il n'y a pas de condition de course — aucun `volatile`
 ni verrou n'est nécessaire.
 
@@ -128,7 +136,7 @@ par la modale.
 
 ## Modèle de vitesse angulaire hybride
 
-Trois modes s'appliquent dans `StarfieldBehavior.update()`, par ordre de priorité :
+Trois modes s'appliquent dans `CameraState.update()`, par ordre de priorité :
 
 ### 1. Frein (SPACE)
 
@@ -225,7 +233,7 @@ si $|\hat{x}| < d$, la composante yaw est ignorée.
 
 ---
 
-## Extrait de code — StarfieldBehavior.update()
+## Extrait de code — CameraState.update()
 
 ```java
 boolean anyKey = input.yawLeft || input.yawRight || input.pitchUp
@@ -251,7 +259,7 @@ if (input.brake) {
     velRoll  += (tRoll  - velRoll)  * LERP_RATE * dt;
 } else {
     // Brownian drift (original)
-    velYaw   += rng.nextGaussian() * DRIFT_ACC * dt;
+    velYaw   += driftRng.nextGaussian() * DRIFT_ACC * dt;
     // ...
 }
 ```
