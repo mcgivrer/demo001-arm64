@@ -19,7 +19,7 @@ deps() {
   mkdir -p "$LIB_DIR"
   for module in $LWJGL_MODULES; do
     #for suffix in "" "-natives-linux-arm64"; do
-    for suffix in "-natives-macos" "-natives-windows" "-natives-linux"; do
+    for suffix in "-natives-macos" "-natives-windows" "-natives-linux" "-natives-linux-arm64"; do
       local_jar="$LIB_DIR/${module}-${LWJGL_VERSION}${suffix}.jar"
       if [[ ! -f "$local_jar" ]]; then
         url="$MAVEN_BASE/$module/$LWJGL_VERSION/${module}-${LWJGL_VERSION}${suffix}.jar"
