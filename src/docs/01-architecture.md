@@ -60,7 +60,7 @@ classDiagram
     }
 
     class ParticleSystem {
-        +ParticleSystem(int width, int height)
+        +ParticleSystem(int width, int height, InputState input, long seed)
     }
 
     class StarfieldBehavior {
@@ -68,10 +68,18 @@ classDiagram
         -double[] travelSpeed
         -Color[] starColor
         -float[] brightness, baseSize
+        -String[] starName
+        -long seed
+        -long spawnCounter
         -double velYaw, velPitch, velRoll
         +update(Entity, double dt)
         +draw(Entity, Graphics2D)
         -initStar(int i, boolean scatter)
+        -subSeed(long seed, long n)$ long
+    }
+
+    class StarNameGenerator {
+        +generate(Random rng)$ String
     }
 
     Main --> GamePanel : crée
@@ -81,6 +89,7 @@ classDiagram
     ParticleSystem --|> Entity : étend
     StarfieldBehavior ..|> Behavior : implémente
     ParticleSystem --> StarfieldBehavior : instancie
+    StarfieldBehavior --> StarNameGenerator : nomme les étoiles
 ```
 
 ---

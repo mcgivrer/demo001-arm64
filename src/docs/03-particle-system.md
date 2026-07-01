@@ -27,7 +27,7 @@ class Entity {
 }
 
 class ParticleSystem {
-    + ParticleSystem(width : int, height : int)
+    + ParticleSystem(width : int, height : int, input : InputState, seed : long)
 }
 
 interface Behavior {
@@ -36,7 +36,7 @@ interface Behavior {
 }
 
 class StarfieldBehavior {
-    + StarfieldBehavior(width, height)
+    + StarfieldBehavior(width, height, input, seed)
     + update(Entity, double)
     + draw(Entity, Graphics2D)
 }
@@ -53,10 +53,10 @@ ParticleSystem ..> StarfieldBehavior : <<new + addBehavior>>
 
 ```mermaid
 flowchart TD
-    A([Main.initEntities]) --> B[new ParticleSystem\nwidth, height]
+    A([Main.initEntities]) --> B[new ParticleSystem\nwidth, height, input, seed]
     B --> C[super Entity\n0, 0, width, height]
-    C --> D[new StarfieldBehavior\nwidth, height]
-    D --> E[initStar × 500\nscatter = true]
+    C --> D[new StarfieldBehavior\nwidth, height, input, seed]
+    D --> E[initStar × 500\nscatter = true\nsub-seed par étoile]
     E --> F[addBehavior\nStarfieldBehavior]
     F --> G([Entité prête\ndans entities])
 ```
@@ -67,12 +67,16 @@ flowchart TD
 
 ```java
 public class ParticleSystem extends Entity {
-    public ParticleSystem(int width, int height) {
+    public ParticleSystem(int width, int height, InputState input, long seed) {
         super(0, 0, width, height);
-        addBehavior(new StarfieldBehavior(width, height));
+        addBehavior(new StarfieldBehavior(width, height, input, seed));
     }
 }
 ```
+
+Le paramètre `seed` provient de `config.properties` (`app.stars.seed`) et pilote toute
+la génération procédurale du champ d'étoiles — positions, types spectraux et noms
+(voir [10 — Génération procédurale](10-procedural-generation.md)).
 
 La position `(0, 0)` et les dimensions `(width, height)` définissent le **domaine de
 l'entité** — ici la totalité du panneau graphique. `StarfieldBehavior` lit ces valeurs
@@ -88,9 +92,9 @@ Pour ajouter un deuxième effet visuel (ex. météores, nébuleuse), il suffit d
 
 ```java
 public class ParticleSystem extends Entity {
-    public ParticleSystem(int width, int height) {
+    public ParticleSystem(int width, int height, InputState input, long seed) {
         super(0, 0, width, height);
-        addBehavior(new StarfieldBehavior(width, height));
+        addBehavior(new StarfieldBehavior(width, height, input, seed));
         addBehavior(new MeteorBehavior(width, height)); // futur comportement
     }
 }

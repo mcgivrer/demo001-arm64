@@ -46,6 +46,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `07-game-loop.md` | Swing game loop, EDT, delta-time |
 | `08-input-controls.md` | InputState, GamePanel listeners, keyboard/mouse camera control |
 | `09-thrust-engine.md` | Engine power (thrust) throttle, speed/power HUD |
+| `10-procedural-generation.md` | Seed-based procedural star generation, star name generator, approach name labels |
 
 ### Documentation rules
 

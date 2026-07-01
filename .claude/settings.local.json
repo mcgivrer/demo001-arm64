@@ -8,7 +8,8 @@
       "Bash(disown)",
       "Bash(echo \"started PID $!\")",
       "Bash(xwininfo *)",
-      "Bash(xprop -root _NET_ACTIVE_WINDOW)"
+      "Bash(xprop -root _NET_ACTIVE_WINDOW)",
+      "Bash(./build.sh)"
     ]
   }
 }

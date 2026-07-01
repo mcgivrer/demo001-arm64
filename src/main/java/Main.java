@@ -13,9 +13,11 @@ public class Main {
     private static final int    DEFAULT_WIDTH  = 800;
     private static final int    DEFAULT_HEIGHT = 600;
     private static final String DEFAULT_LANG   = "EN";
+    private static final long   DEFAULT_SEED   = 42L;
 
     private final int    windowWidth;
     private final int    windowHeight;
+    private final long   starSeed;
     private final String windowTitle;
     private final ResourceBundle bundle;
 
@@ -33,14 +35,17 @@ public class Main {
         windowHeight = Integer.parseInt(
             config.getProperty("app.window.height", String.valueOf(DEFAULT_HEIGHT)));
 
+        starSeed = Long.parseLong(
+            config.getProperty("app.stars.seed", String.valueOf(DEFAULT_SEED)));
+
         String langCode = config.getProperty("app.language.default", DEFAULT_LANG);
         Locale locale   = Locale.of(langCode.toLowerCase(Locale.ROOT));
 
         bundle      = loadBundle(locale);
         windowTitle = getMessage("app.title", "Demo001");
 
-        System.out.printf("Window: %dx%d  locale: %s  title: \"%s\"%n",
-            windowWidth, windowHeight, locale, windowTitle);
+        System.out.printf("Window: %dx%d  locale: %s  seed: %d  title: \"%s\"%n",
+            windowWidth, windowHeight, locale, starSeed, windowTitle);
     }
 
     private Properties loadConfig() {
@@ -84,7 +89,7 @@ public class Main {
     }
 
     private void initEntities() {
-        entities.add(new ParticleSystem(windowWidth, windowHeight, inputState));
+        entities.add(new ParticleSystem(windowWidth, windowHeight, inputState, starSeed));
     }
 
     private void createAndShowWindow() {

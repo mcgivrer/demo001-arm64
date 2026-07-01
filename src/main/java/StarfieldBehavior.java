@@ -14,10 +14,18 @@ public class StarfieldBehavior implements Behavior {
     private static final double BRAKE_DECAY  = 8.0;   // deceleration rate when braking (1/s)
     private static final double MOUSE_DEAD   = 0.08;  // normalized dead zone for mouse joystick
 
+    private static final double NAME_PROBABILITY = 0.25; // fraction of stars that get a name
+    private static final double NAME_Z_THRESHOLD = 1.00; // label fades in below this depth
+    private static final double NAME_FULL_Z      = 0.50; // label fully opaque at this depth
+    private static final float  NAME_FONT_SIZE   = 9f;
+    private static final int    NAME_PAD_X       = 4;    // label horizontal padding (px)
+    private static final int    NAME_PAD_Y       = 2;    // label vertical padding (px)
+
     private static final double THRUST_RATE     = 0.45; // engine power change (1/s) while CTRL/SHIFT held
     private static final double MIN_THRUST      = 0.0;
     private static final double MAX_THRUST      = 1.0;
-    private static final double INITIAL_THRUST  = 0.5;  // cruise power — matches the original fixed TRAVEL_SPEED
+    private static final double CRUISE_THRUST   = 0.5;  // speed reference — matches the original fixed TRAVEL_SPEED
+    private static final double INITIAL_THRUST  = 0.15; // gentle start, leaves time to read star names
     private static final double MAX_SPEED_PARSEC = 70.0; // fictional top speed, displayed at full thrust
 
     private static final int    GAUGE_X      = 20;
@@ -47,6 +55,7 @@ public class StarfieldBehavior implements Behavior {
     private final double[] travelSpeed;   // per-star speed multiplier (parallax depth)
     private final Color[]  starColor;
     private final float[]  brightness, baseSize;
+    private final String[] starName;      // procedural name, or null for anonymous stars
 
     // Camera angular velocities (rad/s)
     private double velYaw = 0.05, velPitch = 0.02, velRoll = 0.01;
@@ -56,7 +65,9 @@ public class StarfieldBehavior implements Behavior {
 
     private final int       cx, cy;
     private final double    projScaleX, projScaleY;
-    private final Random    rng = new Random(42L);
+    private final long      seed;         // master seed — the whole starfield derives from it
+    private long            spawnCounter; // total stars generated; sub-seed index
+    private final Random    rng;          // Brownian drift noise only (not star generation)
     private final InputState input;
 
     // Harvard spectral classification: {cumProb, R, G, B, minBrightness, baseSizePx}
@@ -70,8 +81,10 @@ public class StarfieldBehavior implements Behavior {
         {1.000, 155, 176, 255, 1.00, 5.0},  // O — blue giant      (rarest)
     };
 
-    public StarfieldBehavior(int width, int height, InputState input) {
+    public StarfieldBehavior(int width, int height, InputState input, long seed) {
         this.input = input;
+        this.seed  = seed;
+        this.rng   = new Random(seed);
         cx = width  / 2;
         cy = height / 2;
         projScaleX = width  * 0.45;
@@ -84,28 +97,48 @@ public class StarfieldBehavior implements Behavior {
         starColor   = new Color[STAR_COUNT];
         brightness  = new float[STAR_COUNT];
         baseSize    = new float[STAR_COUNT];
+        starName    = new String[STAR_COUNT];
 
         for (int i = 0; i < STAR_COUNT; i++) initStar(i, true);
     }
 
+    /**
+     * SplitMix64 finalizer — decorrelates consecutive spawn indices so each
+     * star gets an independent, reproducible sub-seed from the master seed.
+     */
+    private static long subSeed(long seed, long n) {
+        long z = seed + n * 0x9E3779B97F4A7C15L;
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
+    }
+
     private void initStar(int i, boolean scatter) {
-        sx[i] = (rng.nextDouble() * 2 - 1) * RANGE;
-        sy[i] = (rng.nextDouble() * 2 - 1) * RANGE;
+        // Every spawned star draws all its properties (and name) from its own
+        // sub-seeded generator: star #n is identical across runs with the same seed.
+        Random gen = new Random(subSeed(seed, spawnCounter++));
+
+        sx[i] = (gen.nextDouble() * 2 - 1) * RANGE;
+        sy[i] = (gen.nextDouble() * 2 - 1) * RANGE;
         // On scatter: spread throughout depth; on respawn: push to far shell
         sz[i] = scatter
-            ? NEAR_Z + rng.nextDouble() * (RANGE - NEAR_Z)
-            : RANGE * (0.7 + rng.nextDouble() * 0.3);
+            ? NEAR_Z + gen.nextDouble() * (RANGE - NEAR_Z)
+            : RANGE * (0.7 + gen.nextDouble() * 0.3);
 
-        double r = rng.nextDouble();
+        double r = gen.nextDouble();
         double[] spec = SPECTRAL_TYPES[SPECTRAL_TYPES.length - 1];
         for (double[] s : SPECTRAL_TYPES) {
             if (r < s[0]) { spec = s; break; }
         }
         starColor[i]   = new Color((int) spec[1], (int) spec[2], (int) spec[3]);
-        brightness[i]  = (float) (spec[4] + rng.nextDouble() * (1.0 - spec[4]));
-        baseSize[i]    = (float) (spec[5]  * (0.7 + rng.nextDouble() * 0.6));
+        brightness[i]  = (float) (spec[4] + gen.nextDouble() * (1.0 - spec[4]));
+        baseSize[i]    = (float) (spec[5]  * (0.7 + gen.nextDouble() * 0.6));
         // Speed multiplier: range 0.4–1.6, independent of position → true parallax
-        travelSpeed[i] = 0.4 + rng.nextDouble() * 1.2;
+        travelSpeed[i] = 0.4 + gen.nextDouble() * 1.2;
+
+        starName[i] = gen.nextDouble() < NAME_PROBABILITY
+            ? StarNameGenerator.generate(gen)
+            : null;
     }
 
     @Override
@@ -176,8 +209,8 @@ public class StarfieldBehavior implements Behavior {
 
             sx[i] = x; sy[i] = y;
             // Forward travel: speed ∝ 1/z → slow far away, fast when close (parallax + warp)
-            // Scaled by engine thrust: enginePower=0 → stopped, =INITIAL_THRUST → original speed, =1 → 2×
-            z -= TRAVEL_SPEED * travelSpeed[i] * (enginePower / INITIAL_THRUST) / z * dt;
+            // Scaled by engine thrust: enginePower=0 → stopped, =CRUISE_THRUST → original speed, =1 → 2×
+            z -= TRAVEL_SPEED * travelSpeed[i] * (enginePower / CRUISE_THRUST) / z * dt;
             sz[i] = z;
 
             // Star passed in front of (or too close to) viewer → respawn at far depth
@@ -225,8 +258,51 @@ public class StarfieldBehavior implements Behavior {
             }
         }
 
+        drawStarLabels(g);
         drawThrustHud(g);
         if (input.showHelp) drawControlsHelp(g);
+    }
+
+    /**
+     * Second pass over the stars: named stars close enough to the viewer get
+     * a label that fades in on approach — 9 pt white text inside a dark-grey
+     * frame over a translucent dark-grey background.
+     */
+    private void drawStarLabels(Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, NAME_FONT_SIZE));
+        FontMetrics fm = g.getFontMetrics();
+
+        for (int i = 0; i < STAR_COUNT; i++) {
+            String name = starName[i];
+            double z    = sz[i];
+            if (name == null || z <= NEAR_Z || z >= NAME_Z_THRESHOLD) continue;
+
+            double px = cx + sx[i] / z * projScaleX;
+            double py = cy + sy[i] / z * projScaleY;
+            if (px < 0 || px > cx * 2 || py < 0 || py > cy * 2) continue;
+
+            // Fade in as the star closes in on the viewer; fully opaque from NAME_FULL_Z
+            float fade = Math.clamp(
+                (float) ((NAME_Z_THRESHOLD - z) / (NAME_Z_THRESHOLD - NAME_FULL_Z)), 0f, 1f);
+
+            float r  = Math.clamp((float) (baseSize[i] / z), 0.4f, 8f);
+            int   tw = fm.stringWidth(name);
+            int   th = fm.getAscent() + fm.getDescent();
+            int   lx = (int) (px + r + 8);
+            int   ly = (int) (py - th / 2.0 - NAME_PAD_Y);
+            int   boxW = tw + NAME_PAD_X * 2;
+            int   boxH = th + NAME_PAD_Y * 2;
+
+            // Translucent dark-grey background
+            g.setColor(new Color(38, 42, 48, (int) (fade * 150)));
+            g.fillRect(lx, ly, boxW, boxH);
+            // Dark-grey frame
+            g.setColor(new Color(85, 90, 100, (int) (fade * 210)));
+            g.drawRect(lx, ly, boxW, boxH);
+            // White label text
+            g.setColor(new Color(255, 255, 255, (int) (fade * 255)));
+            g.drawString(name, lx + NAME_PAD_X, ly + NAME_PAD_Y + fm.getAscent());
+        }
     }
 
     private void drawThrustHud(Graphics2D g) {

@@ -69,15 +69,18 @@ La puissance moteur module directement le terme d'avancement par étoile (voir
 
 $$z_{n+1} = z_n - \frac{v_{\text{base}} \cdot v_i}{z_n} \cdot \frac{P}{P_{\text{cruise}}} \cdot \Delta t$$
 
-avec $P_{\text{cruise}} = 0.5$ (`INITIAL_THRUST`) — la puissance de croisière initiale,
-choisie pour que le comportement par défaut (avant toute pression de touche)
-corresponde exactement à l'ancienne vitesse fixe. Le facteur $P / P_{\text{cruise}}$
+avec $P_{\text{cruise}} = 0.5$ (`CRUISE_THRUST`) — la puissance de référence, choisie
+pour que ce niveau corresponde exactement à l'ancienne vitesse fixe. La puissance de
+**départ** est distincte : `INITIAL_THRUST = 0.15`, un démarrage lent qui laisse le
+temps de lire les noms d'étoiles à l'approche
+(voir [chapitre 10](10-procedural-generation.md)). Le facteur $P / P_{\text{cruise}}$
 vaut donc :
 
 | `enginePower` | Facteur de vitesse | Effet |
 |---------------|---------------------|-------|
 | 0.0 (moteurs coupés) | 0× | vaisseau immobile — aucun avancement |
-| 0.5 (croisière, valeur initiale) | 1× | vitesse identique à l'ancien comportement fixe |
+| 0.15 (valeur initiale) | 0.3× | démarrage lent, lecture des noms d'étoiles |
+| 0.5 (croisière) | 1× | vitesse identique à l'ancien comportement fixe |
 | 1.0 (pleine puissance) | 2× | vitesse double, warp plus marqué |
 
 ---
@@ -90,7 +93,8 @@ avec la sensation de vitesse réelle du champ d'étoiles :
 
 $$v_{\text{affichée}} = P \cdot v_{\max} \quad \text{avec } v_{\max} = 70\ \text{pc/s (}\texttt{MAX\_SPEED\_PARSEC}\text{)}$$
 
-À puissance de croisière (0.5), la vitesse affichée est donc 35,00 pc/s.
+À puissance de croisière (0.5), la vitesse affichée est de 35,00 pc/s ; au
+démarrage (`INITIAL_THRUST = 0.15`), elle est de 10,50 pc/s.
 
 ---
 
