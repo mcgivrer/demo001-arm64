@@ -28,6 +28,11 @@ public class StarfieldBehavior implements Behavior {
     private static final int    GAUGE_HEIGHT = 100;
     private static final int    GAUGE_MARGIN = 64; // distance from panel bottom edge
 
+    private static final int    FPS_X         = 10;  // FPS readout, top-left corner
+    private static final int    FPS_Y         = 40;
+    private static final float  FPS_FONT_SIZE = 9f;
+    private static final double FPS_PERIOD    = 0.5; // refresh interval (s)
+
     private static final int    HELP_MARGIN  = 60; // distance from panel right/bottom edges
     private static final int    HELP_WIDTH   = 250;
     private static final int    HELP_ROW_H   = 16;
@@ -54,6 +59,11 @@ public class StarfieldBehavior implements Behavior {
 
     // Engine power throttle, 0 (idle) .. 1 (full thrust)
     private double enginePower = INITIAL_THRUST;
+
+    // FPS counter — frames accumulated over FPS_PERIOD, then averaged
+    private double fpsTimer;
+    private int    fpsFrames;
+    private int    fps;
 
     private final int       cx, cy;
     private final double    projScaleX, projScaleY;
@@ -140,6 +150,14 @@ public class StarfieldBehavior implements Behavior {
         if (input.thrustDown) enginePower -= THRUST_RATE * dt;
         enginePower = Math.clamp(enginePower, MIN_THRUST, MAX_THRUST);
 
+        fpsTimer += dt;
+        fpsFrames++;
+        if (fpsTimer >= FPS_PERIOD) {
+            fps = (int) Math.round(fpsFrames / fpsTimer);
+            fpsTimer  = 0;
+            fpsFrames = 0;
+        }
+
         // Frame rotation computed once by CameraState (shared with the cloud layer)
         double cosY = camera.cosYaw,   sinY = camera.sinYaw;
         double cosP = camera.cosPitch, sinP = camera.sinPitch;
@@ -215,8 +233,15 @@ public class StarfieldBehavior implements Behavior {
         }
 
         drawStarLabels(g);
+        drawFpsHud(g);
         drawThrustHud(g);
         if (input.showHelp) drawControlsHelp(g);
+    }
+
+    private void drawFpsHud(Graphics2D g) {
+        g.setFont(g.getFont().deriveFont(Font.PLAIN, FPS_FONT_SIZE));
+        g.setColor(Color.WHITE);
+        g.drawString(fps + " FPS", FPS_X, FPS_Y);
     }
 
     /**

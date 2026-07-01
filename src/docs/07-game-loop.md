@@ -117,6 +117,32 @@ n'est pas affecté par les corrections d'horloge système (NTP, etc.).
 | Étoiles simulées | 500 | Coût O(N) par frame |
 | Opérations par étoile | 6 mul + 6 add (rotations) + 1 division (travel) | Pas de matrice allouée |
 
+### Afficheur de FPS
+
+La fréquence réelle est mesurée et affichée en haut à gauche (position `(10, 40)`,
+texte blanc, police 9 pt — `StarfieldBehavior.drawFpsHud()`). Plutôt qu'un
+$1/\Delta t$ instantané (trop nerveux), les frames sont **accumulées sur une
+fenêtre** de $T = 0.5$ s puis moyennées :
+
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+  <mrow>
+    <mtext>FPS</mtext>
+    <mo>=</mo>
+    <mo>round</mo>
+    <mrow>
+      <mo>(</mo>
+      <mfrac>
+        <msub><mi>n</mi><mtext>frames</mtext></msub>
+        <mrow><mo>∑</mo><mi>Δt</mi></mrow>
+      </mfrac>
+      <mo>)</mo>
+    </mrow>
+  </mrow>
+</math>
+
+L'afficheur se rafraîchit donc deux fois par seconde avec une valeur stable, et le
+coût de mesure est négligeable (un compteur et une addition par frame).
+
 ---
 
 ## GamePanel — intégration Swing

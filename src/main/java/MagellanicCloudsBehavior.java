@@ -10,6 +10,12 @@ import java.util.Random;
  * The puffs sit at infinity: they rotate with the camera (via the shared
  * {@link CameraState}) but never translate with forward travel, so the
  * clouds form a stable backdrop behind the starfield.
+ *
+ * <p>Rendering optimisation: each puff's translucency is <b>pre-baked</b>
+ * into a small sprite variant (3 tints × 8 quantised alpha levels, rendered
+ * once at construction, premultiplied ARGB). The draw loop is then plain
+ * scaled {@code drawImage} calls — no per-puff {@code AlphaComposite}, which
+ * would force Java2D through its slow general compositing path.
  */
 public class MagellanicCloudsBehavior implements Behavior {
 
@@ -27,13 +33,23 @@ public class MagellanicCloudsBehavior implements Behavior {
     private static final int    SPRITE_SIZE  = 32;    // base soft-sprite resolution (px)
     private static final float  MAX_RADIUS   = 220f;  // projected puff radius cap (px)
 
+    // Quantised translucency levels covering body (0.03–0.11) and HII (0.16–0.30)
+    private static final float[] ALPHA_LEVELS = {
+        0.03f, 0.05f, 0.07f, 0.09f, 0.11f, 0.16f, 0.23f, 0.30f
+    };
+
+    private static final Color[] TINTS = {
+        new Color(205, 218, 255),   // bluish white — cloud body
+        new Color(255, 240, 224),   // warm white — old stellar population
+        new Color(255, 170, 195),   // pink — HII star-forming regions
+    };
+
     // Puff data — unit direction vectors + appearance
     private final double[] vx, vy, vz;
     private final float[]  size;      // angular size (rad)
-    private final float[]  alpha;     // individual translucency, 0..1
-    private final int[]    tint;      // index into sprites[]
+    private final int[]    variant;   // index into sprites[]: tint × alpha level
 
-    // Pre-rendered radial-gradient sprites: bluish white, warm white, HII pink
+    // Pre-rendered sprites, one per (tint, alpha level) — alpha baked in
     private final BufferedImage[] sprites;
 
     private final CameraState camera;
@@ -47,41 +63,55 @@ public class MagellanicCloudsBehavior implements Behavior {
         projScaleX = width  * 0.45;
         projScaleY = height * 0.45;
 
-        sprites = new BufferedImage[] {
-            makeSprite(new Color(205, 218, 255)),   // bluish white — cloud body
-            makeSprite(new Color(255, 240, 224)),   // warm white — old stellar population
-            makeSprite(new Color(255, 170, 195)),   // pink — HII star-forming regions
-        };
+        sprites = new BufferedImage[TINTS.length * ALPHA_LEVELS.length];
+        for (int t = 0; t < TINTS.length; t++) {
+            for (int l = 0; l < ALPHA_LEVELS.length; l++) {
+                sprites[t * ALPHA_LEVELS.length + l] = makeSprite(TINTS[t], ALPHA_LEVELS[l]);
+            }
+        }
 
         int total = LMC_PUFFS + SMC_PUFFS + BRIDGE_PUFFS + HII_PUFFS;
-        vx    = new double[total];
-        vy    = new double[total];
-        vz    = new double[total];
-        size  = new float[total];
-        alpha = new float[total];
-        tint  = new int[total];
+        vx      = new double[total];
+        vy      = new double[total];
+        vz      = new double[total];
+        size    = new float[total];
+        variant = new int[total];
 
         Random gen = new Random(StarfieldBehavior.subSeed(seed, CLOUD_SUBSEED_INDEX));
         generate(gen);
     }
 
-    /** Soft round sprite: opaque tinted centre fading to fully transparent edge. */
-    private static BufferedImage makeSprite(Color c) {
+    /**
+     * Soft round sprite: tinted centre fading to a fully transparent edge,
+     * with the puff's translucency pre-multiplied into the pixels.
+     */
+    private static BufferedImage makeSprite(Color c, float alpha) {
         BufferedImage img = new BufferedImage(SPRITE_SIZE, SPRITE_SIZE,
-                                              BufferedImage.TYPE_INT_ARGB);
+                                              BufferedImage.TYPE_INT_ARGB_PRE);
         Graphics2D g = img.createGraphics();
         float half = SPRITE_SIZE / 2f;
         g.setPaint(new RadialGradientPaint(
             half, half, half,
             new float[] {0f, 0.45f, 1f},
             new Color[] {
-                new Color(c.getRed(), c.getGreen(), c.getBlue(), 255),
-                new Color(c.getRed(), c.getGreen(), c.getBlue(), 110),
+                new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (255 * alpha)),
+                new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (110 * alpha)),
                 new Color(c.getRed(), c.getGreen(), c.getBlue(), 0),
             }));
         g.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
         g.dispose();
         return img;
+    }
+
+    /** Maps a continuous translucency to the nearest pre-baked sprite variant. */
+    private static int variantOf(int tint, float alpha) {
+        int best = 0;
+        for (int l = 1; l < ALPHA_LEVELS.length; l++) {
+            if (Math.abs(ALPHA_LEVELS[l] - alpha) < Math.abs(ALPHA_LEVELS[best] - alpha)) {
+                best = l;
+            }
+        }
+        return tint * ALPHA_LEVELS.length + best;
     }
 
     // --- Procedural generation -------------------------------------------
@@ -169,7 +199,7 @@ public class MagellanicCloudsBehavior implements Behavior {
     private void scatterHii(Random gen, int i, double[] lmc, double[] smc) {
         for (int k = 0; k < HII_PUFFS; k++, i++) {
             double[] center = k < 7 ? lmc : smc;
-            double radius   = k < 7 ? LMC_RADIUS * 0.6 : SMC_RADIUS * 0.6;
+            double radius   = (k < 7 ? LMC_RADIUS : SMC_RADIUS) * 0.6;
             double[] u = tangentU(center);
             double[] v = cross(center, u);
             double[] p = offset(center, u, v,
@@ -184,7 +214,8 @@ public class MagellanicCloudsBehavior implements Behavior {
 
     private void setPuff(int i, double[] dir, float s, float a, int t) {
         vx[i] = dir[0]; vy[i] = dir[1]; vz[i] = dir[2];
-        size[i] = s; alpha[i] = a; tint[i] = t;
+        size[i]    = s;
+        variant[i] = variantOf(t, a);
     }
 
     // --- Small vector helpers on the unit sphere -------------------------
@@ -272,7 +303,6 @@ public class MagellanicCloudsBehavior implements Behavior {
 
     @Override
     public void draw(Entity entity, Graphics2D g) {
-        Composite oldComposite = g.getComposite();
         int panelW = cx * 2, panelH = cy * 2;
 
         for (int i = 0; i < vx.length; i++) {
@@ -285,11 +315,10 @@ public class MagellanicCloudsBehavior implements Behavior {
 
             if (px + r < 0 || px - r > panelW || py + r < 0 || py - r > panelH) continue;
 
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha[i]));
-            g.drawImage(sprites[tint[i]],
+            // Plain scaled blit — the puff's alpha is baked into the sprite
+            g.drawImage(sprites[variant[i]],
                         (int) (px - r), (int) (py - r),
                         (int) (r * 2), (int) (r * 2), null);
         }
-        g.setComposite(oldComposite);
     }
 }
