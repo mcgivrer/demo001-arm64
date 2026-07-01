@@ -30,17 +30,13 @@ classDiagram
         +double mouseNormY
     }
 
-    class GamePanel {
+    class GLWindow {
         -InputState input
-        -String exitTitle
-        -String exitMessage
-        +keyPressed(KeyEvent)
-        +keyReleased(KeyEvent)
-        +mousePressed(MouseEvent)
-        +mouseReleased(MouseEvent)
-        +mouseDragged(MouseEvent)
-        -updateMouseNorm(MouseEvent)
-        -confirmExit()
+        -boolean confirmQuit
+        -onKey(int key, int action)
+        -onMouseButton(int button, int action)
+        -onMouseMove(double x, double y)
+        -updateMouseNorm(double x, double y)
     }
 
     class CameraState {
@@ -51,21 +47,23 @@ classDiagram
     class StarfieldBehavior {
         -InputState input
         +update(Entity, double dt)
-        +draw(Entity, Graphics2D)
-        -drawControlsHelp(Graphics2D)
+        +draw(Entity, RenderContext)
+        -drawControlsHelp(RenderContext)
     }
 
-    GamePanel --> InputState : écrit
+    GLWindow --> InputState : écrit — callbacks GLFW
     CameraState --> InputState : lit — rotation, frein, souris
     StarfieldBehavior --> InputState : lit — thrust, aide
 ```
 
-`InputState` est un objet de valeur mutable partagé entre `GamePanel` (producteur)
-et deux consommateurs : `CameraState` (rotation yaw/pitch/roll, frein, joystick
-souris — voir [chapitre 5](05-rotations-3d.md)) et `StarfieldBehavior` (poussée
-moteur CTRL/SHIFT, affichage de l'aide). Comme `javax.swing.Timer` et les événements
-Swing s'exécutent tous sur l'EDT, il n'y a pas de condition de course — aucun `volatile`
-ni verrou n'est nécessaire.
+`InputState` est un objet de valeur mutable partagé entre `GLWindow` (producteur —
+les callbacks GLFW `glfwSetKeyCallback`, `glfwSetMouseButtonCallback`,
+`glfwSetCursorPosCallback`) et deux consommateurs : `CameraState` (rotation
+yaw/pitch/roll, frein, joystick souris — voir [chapitre 5](05-rotations-3d.md)) et
+`StarfieldBehavior` (poussée moteur CTRL/SHIFT, affichage de l'aide). Les callbacks
+GLFW sont invoqués par `glfwPollEvents()`, appelé **sur le thread de la boucle de
+jeu elle-même** — il n'y a donc pas de condition de course, aucun `volatile` ni
+verrou n'est nécessaire.
 
 ---
 
@@ -99,38 +97,39 @@ pilote pas un état moteur continu mais une **bascule** (toggle) — appuyer une
 inverse `showHelp`, peu importe la durée de l'appui.
 
 La répétition de touche du système d'exploitation (key-repeat) pose un problème
-classique pour un toggle : tant que H reste enfoncée, l'OS envoie plusieurs
-`KEY_PRESSED` consécutifs, ce qui ferait clignoter l'affichage si chaque événement
-inversait `showHelp`. `GamePanel` filtre ce phénomène avec un drapeau local
-`hKeyDown`, remis à `false` uniquement sur `keyReleased` :
+classique pour un toggle : tant que H reste enfoncée, l'OS génère des événements
+répétés, ce qui ferait clignoter l'affichage si chacun inversait `showHelp`. GLFW
+résout cela nativement : les répétitions arrivent avec `action == GLFW_REPEAT`,
+qu'il suffit d'ignorer — seul le `GLFW_PRESS` initial bascule l'état :
 
 ```java
-private void toggleHelp() {
-    if (!hKeyDown) {
-        input.showHelp = !input.showHelp;
-        hKeyDown = true;
+private void onKey(int key, int action) {
+    if (action == GLFW_REPEAT) return;
+    boolean down = action == GLFW_PRESS;
+    switch (key) {
+        // ...
+        case GLFW_KEY_H -> { if (down) input.showHelp = !input.showHelp; }
     }
 }
 ```
 
 Le rendu lui-même est délégué à `StarfieldBehavior.drawControlsHelp()`, appelé en
 toute fin de `draw()` (après le HUD de propulsion) si `input.showHelp` est vrai : un
-panneau semi-transparent arrondi, ancré en bas à droite du panel, énumère
-l'intégralité du mapping clavier/souris ci-dessus.
+panneau semi-transparent arrondi (rectangle SDF du `quad` shader), ancré en bas à
+droite, énumère l'intégralité du mapping clavier/souris ci-dessus.
 
 ---
 
 ## Quitter l'application — ESCAPE
 
-Contrairement aux autres touches, ESCAPE ne modifie pas `InputState` : `keyPressed`
-appelle directement `GamePanel.confirmExit()`, qui ouvre une boîte de dialogue modale
-(`JOptionPane.showConfirmDialog`, `YES_NO_OPTION`) avec un titre et un message
-localisés (clés i18n `app.exit.confirm.title` / `app.exit.confirm.message`, résolues
-par `Main.getMessage(key, fallback)` puis injectées dans `GamePanel` au moment de sa
-construction). Si l'utilisateur confirme, `System.exit(0)` est appelé ; sinon
-l'animation reprend normalement — le `javax.swing.Timer` continue de tourner pendant
-que la boîte de dialogue est affichée, simplement gelé le temps que l'EDT soit occupé
-par la modale.
+Contrairement aux autres touches, ESCAPE ne modifie pas `InputState` : elle bascule
+le drapeau `confirmQuit` de `GLWindow`, et `Main.drawExitOverlay()` rend alors un
+**overlay de confirmation en OpenGL** (scène assombrie + panneau arrondi centré),
+avec titre, message et aide localisés (clés i18n `app.exit.confirm.title` /
+`.message` / `.hint`). Tant que l'overlay est ouvert, les contrôles de vol sont
+ignorés ; **ENTRÉE** confirme (`glfwSetWindowShouldClose`), **ESC** annule.
+L'animation continue de tourner derrière l'overlay — la boucle de jeu n'est jamais
+bloquée, contrairement à l'ancienne boîte modale Swing.
 
 ---
 
@@ -268,6 +267,6 @@ if (input.brake) {
 
 > Voir aussi :
 > - [05 — Rotations 3D](05-rotations-3d.md)
-> - [07 — Boucle de jeu et intégration Swing](07-game-loop.md)
+> - [07 — Boucle de jeu](07-game-loop.md)
 > - [09 — Propulsion : puissance moteur et HUD](09-thrust-engine.md)
 > - [01 — Architecture générale](01-architecture.md)

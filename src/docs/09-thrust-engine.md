@@ -155,25 +155,29 @@ flowchart TD
 title Throttle — du clavier au HUD
 
 actor Joueur
-participant "GamePanel" as GP
+participant "GLWindow" as GW
 participant "InputState" as IS
 participant "StarfieldBehavior" as SB
 
-Joueur -> GP : keyPressed(VK_CONTROL)
-GP -> IS : thrustUp = true
+Joueur -> GW : callback GLFW_KEY_LEFT_CONTROL (GLFW_PRESS)
+GW -> IS : thrustUp = true
 ...
 
-== Frame suivante (Timer ≈16 ms) ==
+== Frame suivante (vsync ≈16,7 ms) ==
 SB -> IS : lit thrustUp / thrustDown
 SB -> SB : enginePower = clamp(enginePower ± k·dt, 0, 1)
 SB -> SB : applique speedFactor à l'avancement des étoiles
-SB -> SB : drawThrustHud(g) — jauge + vitesse pc/s
+SB -> SB : drawThrustHud(ctx) — jauge (QuadRenderer) + vitesse pc/s (TextRenderer)
 @enduml
 ```
+
+La jauge est dessinée par le `quad` shader (contour = bande de bordure SDF,
+remplissage = rectangle plein) et le texte de vitesse par le `text` shader —
+voir [chapitre 12](12-opengl-pipeline.md).
 
 ---
 
 > Voir aussi :
 > - [05 — Rotations 3D](05-rotations-3d.md)
 > - [08 — Contrôle interactif : clavier et souris](08-input-controls.md)
-> - [07 — Boucle de jeu et intégration Swing](07-game-loop.md)
+> - [07 — Boucle de jeu](07-game-loop.md)

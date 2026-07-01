@@ -23,8 +23,9 @@ l'ordre d'insertion.
 title Entity / Behavior — Modèle de classes
 
 interface Behavior {
+    + init(ctx : RenderContext) : void «défaut vide»
     + update(entity : Entity, dt : double) : void
-    + draw(entity : Entity, g : Graphics2D) : void
+    + draw(entity : Entity, ctx : RenderContext) : void
 }
 
 class Entity {
@@ -38,20 +39,22 @@ class Entity {
     --
     + Entity(x, y, width, height)
     + addBehavior(b : Behavior) : void
+    + init(ctx : RenderContext) : void
     + update(dt : double) : void
-    + draw(g : Graphics2D) : void
+    + draw(ctx : RenderContext) : void
 }
 
 class StarfieldBehavior {
     - sx[] sy[] sz[] : double
-    - velYaw velPitch velRoll : double
+    - vao, vbo : int
     --
+    + init(ctx)
     + update(entity, dt)
-    + draw(entity, g)
+    + draw(entity, ctx)
 }
 
 class ParticleSystem {
-    + ParticleSystem(width, height)
+    + ParticleSystem(width, height, input, seed)
 }
 
 Entity "1" o-- "*" Behavior : behaviors
@@ -63,29 +66,35 @@ ParticleSystem ..> StarfieldBehavior : <<crée et injecte>>
 
 ---
 
-## Protocole update / draw
+## Protocole init / update / draw
 
-Chaque frame, la boucle de jeu appelle successivement `update(dt)` puis `draw(g2)`
-sur chaque `Entity`. L'entité propage ces appels à la liste de ses `Behavior` :
+Au démarrage, la boucle de jeu appelle une fois `init(ctx)` (création des
+ressources GL : VAO, VBO, FBO). Ensuite, chaque frame appelle `update(dt)` puis
+`draw(ctx)` sur chaque `Entity`, qui propage à la liste de ses `Behavior` —
+l'ordre d'insertion est donc aussi l'ordre de superposition visuelle :
 
 ```mermaid
 sequenceDiagram
-    participant Timer
+    participant Loop as Boucle GLFW
     participant Entity
     participant B1 as Behavior 1
     participant B2 as Behavior 2
 
-    Timer->>Entity: update(dt)
+    Loop->>Entity: init(ctx)
+    Entity->>B1: init(ctx)
+    Entity->>B2: init(ctx)
+
+    Loop->>Entity: update(dt)
     Entity->>B1: update(entity, dt)
     B1-->>Entity: (modifie état)
     Entity->>B2: update(entity, dt)
     B2-->>Entity: (modifie état)
 
-    Timer->>Entity: draw(g2)
-    Entity->>B1: draw(entity, g2)
-    B1-->>Entity: (dessine)
-    Entity->>B2: draw(entity, g2)
-    B2-->>Entity: (dessine)
+    Loop->>Entity: draw(ctx)
+    Entity->>B1: draw(entity, ctx)
+    B1-->>Entity: (dessine — arrière-plan)
+    Entity->>B2: draw(entity, ctx)
+    B2-->>Entity: (dessine — premier plan)
 ```
 
 ---
@@ -104,12 +113,16 @@ public class Entity {
 
     public void addBehavior(Behavior b) { behaviors.add(b); }
 
+    public void init(RenderContext ctx) {
+        for (Behavior b : behaviors) b.init(ctx);
+    }
+
     public void update(double dt) {
         for (Behavior b : behaviors) b.update(this, dt);
     }
 
-    public void draw(Graphics2D g) {
-        for (Behavior b : behaviors) b.draw(this, g);
+    public void draw(RenderContext ctx) {
+        for (Behavior b : behaviors) b.draw(this, ctx);
     }
 }
 ```
@@ -121,9 +134,18 @@ public class Entity {
 ```java
 public interface Behavior {
     void update(Entity entity, double dt);
-    void draw(Entity entity, Graphics2D g);
+
+    /** One-time GL resource creation (VBOs, textures); GL context is current. */
+    default void init(RenderContext ctx) {}
+
+    void draw(Entity entity, RenderContext ctx);
 }
 ```
+
+`RenderContext` (voir [chapitre 12](12-opengl-pipeline.md)) remplace l'ancien
+`Graphics2D` : il porte les shaders partagés et les aides de dessin HUD
+(`QuadRenderer`, `TextRenderer`). `init` a une implémentation par défaut vide
+pour ne pas imposer de ressources GL aux comportements purement logiques.
 
 ---
 

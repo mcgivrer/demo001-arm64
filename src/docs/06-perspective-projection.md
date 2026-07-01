@@ -114,41 +114,55 @@ $$r = \text{clamp}\!\left(\frac{s_i}{z},\; 0.4,\; 8\right) \text{ px}$$
 
 ---
 
-## Rendu par sprites : cœur + halo en un seul blit
+## Rendu par shaders : projection et profil radial sur la carte graphique
 
-Historiquement chaque étoile était dessinée par un ou deux `g.fill(new Ellipse2D)`
-(disque + halo pour les étoiles brillantes). Or la rasterisation générique de formes
-de Java2D coûte très cher en rendu logiciel : **~25 ms/frame** pour 500 étoiles sur
-l'Orange Pi — impossible d'atteindre 60 FPS.
+Depuis la migration OpenGL ([chapitre 12](12-opengl-pipeline.md)), toutes les
+formules de ce chapitre s'exécutent dans la paire de shaders `star.vert` /
+`star.frag`. Chaque étoile est un **point sprite** (`GL_POINTS`) : la position
+3D, la taille de base, la brillance intrinsèque et la couleur spectrale partent
+dans un VBO (8 floats par étoile, ré-uploadé chaque frame), et un unique
+`glDrawArrays(GL_POINTS, 0, 500)` dessine tout le champ.
 
-Le rendu utilise désormais des **sprites pré-rendus** : à la construction,
-`makeStarSprite()` génère un dégradé radial 40×40 (`TYPE_INT_ARGB_PRE`) par
-combinaison (type spectral × niveau de luminosité), soit 7 × 16 = 112 images
-(~700 Ko). Le dégradé encode à la fois le **cœur** (plateau opaque sur la fraction
-intérieure $1/2.5$ du rayon) et le **halo** de diffusion (chute rapide vers un
-voile à ~21 % puis zéro) :
+### Vertex shader — projection, taille, brillance
 
-$$r_{\text{sprite}} = 2.5 \cdot r, \qquad
-\text{stops} = \{0,\; 0.36,\; 0.46,\; 1\} \rightarrow
-\alpha = \{255,\; 255,\; 60,\; 0\} \times \alpha_{\text{niveau}}$$
+```glsl
+vec2 px   = vec2(aPos.x / z * uProjScale.x, aPos.y / z * uProjScale.y);
+vec2 clip = px / (uViewport * 0.5);
+gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);   // y inversé (OpenGL pointe vers le haut)
 
-La luminosité apparente $L_{\text{app}} = b/z^2$ est **quantifiée sur 16 niveaux**
-pré-cuits dans les pixels du sprite — aucun `AlphaComposite` ni `new Color` par
-étoile, le dessin est un simple `drawImage` mis à l'échelle (~1-2 ns/pixel contre
-10-20× plus pour un `fill`). Coût mesuré : **~2,7 ms/frame** pour 500 étoiles.
+vAlpha = clamp(aBrightness / (z * z), 0.0, 1.0); // loi en carré inverse
+float r = clamp(aSize / z, 0.4, 8.0);            // rayon perspective
+gl_PointSize = r * 2.5 * 2.0;                    // le point couvre le halo entier
+```
+
+La luminosité apparente n'est plus quantifiée : $L_{\text{app}} = b/z^2$ est
+calculée en continu par vertex, sans table de sprites.
+
+### Fragment shader — cœur + halo dans le même profil
+
+Le profil radial reprend les arrêts de l'ancien dégradé : **cœur** opaque sur la
+fraction intérieure $1/2.5$ du rayon, chute rapide vers un **halo** à ~21 %,
+extinction au bord — évalué par pixel grâce à `gl_PointCoord` :
+
+$$
+a(d) = \begin{cases}
+1 & d < 0.9\,c \\
+\text{mix}(1,\, 0.235,\, \frac{d - 0.9c}{0.25c}) & d < 1.15\,c \\
+\text{mix}(0.235,\, 0,\, \frac{d - 1.15c}{1 - 1.15c}) & \text{sinon}
+\end{cases}
+\qquad c = \frac{1}{2.5}
+$$
 
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
   <mrow>
-    <mtext>niveau</mtext>
+    <mtext>fragColor</mtext>
     <mo>=</mo>
-    <mo>min</mo>
     <mo>(</mo>
-    <mn>15</mn><mo>,</mo>
-    <mo>⌊</mo>
+    <msub><mi>c</mi><mtext>rgb</mtext></msub>
+    <mo>,</mo>
     <msub><mi>L</mi><mtext>app</mtext></msub>
-    <mo>×</mo>
-    <mn>16</mn>
-    <mo>⌋</mo>
+    <mo>·</mo>
+    <mi>a</mi><mo>(</mo><mi>d</mi><mo>)</mo>
     <mo>)</mo>
   </mrow>
 </math>
@@ -159,56 +173,50 @@ pré-cuits dans les pixels du sprite — aucun `AlphaComposite` ni `new Color` p
 
 ```mermaid
 flowchart TD
-    A([draw g2]) --> B{z ≤ NEAR_Z ?}
-    B -- oui --> Z([skip])
-    B -- non --> C[Projection\npx, py]
-    C --> D{Hors écran\n+ marge 20px ?}
-    D -- oui --> Z
-    D -- non --> E[Luminosité\nLapp = b/z²]
-    E --> F{alpha < 8 ?}
-    F -- oui --> Z
-    F -- non --> G[Rayon r = s/z\nniveau = Lapp×16]
-    G --> H{r < 1.0 ?}
-    H -- oui --> I[fillRect 1×1\ncouleur quantifiée]
-    H -- non --> J[drawImage sprite\ntype spectral × niveau\néchelle 2×2.5r]
-    I --> M([étoile suivante])
-    J --> M
+    A([glDrawArrays\nGL_POINTS × 500]) --> B[star.vert par étoile]
+    B --> C{z ≤ NEAR_Z ?}
+    C -- oui --> Z[position hors clip\npoint éliminé]
+    C -- non --> D[Projection clip space\ngl_PointSize = 5r\nvAlpha = b/z²]
+    D --> E[Rasterisation du point\nfragments couverts]
+    E --> F[star.frag par fragment]
+    F --> G[d = distance au centre\nvia gl_PointCoord]
+    G --> H[profil cœur / halo a d]
+    H --> I[blending SrcOver\nsur le framebuffer]
 ```
 
 ---
 
 ## Rendu sub-pixel
 
-Les étoiles très lointaines ont un rayon $r < 1\ \text{px}$. Plutôt qu'un sprite
-réduit à un point, on appelle `fillRect(px, py, 1, 1)` avec la couleur quantifiée
-correspondante (`subPixelColors`, pré-allouées — zéro allocation par frame). C'est
-suffisant pour restituer l'aspect granuleux du ciel profond.
+Les étoiles très lointaines ont un rayon $r < 1\ \text{px}$ : `gl_PointSize`
+tombe alors autour de 2 px (le point couvre le halo, 5× le rayon du cœur), et le
+profil radial n'éclaire pleinement que le fragment central — l'aspect granuleux
+du ciel profond est préservé sans cas particulier dans le code, contrairement à
+l'ancien chemin Java2D qui basculait sur un `fillRect` d'un pixel.
 
 ---
 
-## Extrait de code — draw
+## Extrait de code — draw (CPU)
+
+Côté Java, il ne reste que le remplissage du VBO et un draw call :
 
 ```java
-double px = cx + sx[i] / z * projScaleX;
-double py = cy + sy[i] / z * projScaleY;
-
-float ab = Math.clamp((float)(brightness[i] / (z * z)), 0f, 1f);
-if (ab * 255 < 8) continue;
-
-float r = Math.clamp((float)(baseSize[i] / z), 0.4f, 8f);
-
-int level   = Math.min(STAR_ALPHA_LEVELS - 1, (int)(ab * STAR_ALPHA_LEVELS));
-int variant = spectralIdx[i] * STAR_ALPHA_LEVELS + level;
-
-if (r < 1.0f) {
-    g.setColor(subPixelColors[variant]);
-    g.fillRect((int) px, (int) py, 1, 1);
-} else {
-    // Un seul blit rend le cœur et le halo ensemble
-    float gr = r * GLOW_FACTOR;
-    g.drawImage(starSprites[variant],
-                (int)(px - gr), (int)(py - gr), (int)(gr * 2), (int)(gr * 2), null);
+for (int i = 0; i < STAR_COUNT; i++) {
+    int o = i * FLOATS_PER_STAR;
+    double[] spec = SPECTRAL_TYPES[spectralIdx[i]];
+    starData[o]     = (float) sx[i];
+    starData[o + 1] = (float) sy[i];
+    starData[o + 2] = (float) sz[i];
+    starData[o + 3] = baseSize[i];
+    starData[o + 4] = brightness[i];
+    starData[o + 5] = (float) (spec[1] / 255.0);   // couleur spectrale
+    starData[o + 6] = (float) (spec[2] / 255.0);
+    starData[o + 7] = (float) (spec[3] / 255.0);
 }
+ctx.starShader.use();
+// uniforms : uViewport, uProjScale, uNearZ
+glBufferSubData(GL_ARRAY_BUFFER, 0, starData);
+glDrawArrays(GL_POINTS, 0, STAR_COUNT);
 ```
 
 ---

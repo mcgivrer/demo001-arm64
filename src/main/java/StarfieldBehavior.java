@@ -1,6 +1,8 @@
-import java.awt.*;
-import java.awt.image.BufferedImage;
+import java.awt.Color;
 import java.util.Random;
+
+import static org.lwjgl.opengles.GLES20.*;
+import static org.lwjgl.opengles.GLES30.*;
 
 public class StarfieldBehavior implements Behavior {
 
@@ -9,13 +11,7 @@ public class StarfieldBehavior implements Behavior {
     private static final double NEAR_Z       = 0.06;
     private static final double TRAVEL_SPEED = 0.20;  // base forward speed (units/s at z=1)
 
-    // Star sprites: filling per-star Ellipse2D shapes costs ~25 ms/frame in
-    // software rendering (generic shape rasterisation); pre-rendered sprite
-    // blits bring the whole starfield under ~2 ms. Core + glow live in the
-    // same radial gradient, one variant per (spectral type, alpha level).
-    private static final int   STAR_SPRITE_SIZE  = 40;   // sprite resolution (px)
-    private static final int   STAR_ALPHA_LEVELS = 16;   // quantised brightness levels
-    private static final float GLOW_FACTOR       = 2.5f; // glow radius / core radius
+    private static final int    FLOATS_PER_STAR = 8;  // x, y, z, size, brightness, r, g, b
 
     private static final double NAME_PROBABILITY = 0.25; // fraction of stars that get a name
     private static final double NAME_Z_THRESHOLD = 1.00; // label fades in below this depth
@@ -61,14 +57,13 @@ public class StarfieldBehavior implements Behavior {
     // Parallel arrays — one slot per star
     private final double[] sx, sy, sz;
     private final double[] travelSpeed;   // per-star speed multiplier (parallax depth)
-    private final int[]    spectralIdx;   // index into SPECTRAL_TYPES / sprite tints
+    private final int[]    spectralIdx;   // index into SPECTRAL_TYPES
     private final float[]  brightness, baseSize;
     private final String[] starName;      // procedural name, or null for anonymous stars
 
-    // Pre-rendered star sprites [spectral type × alpha level] and the matching
-    // quantised colours for the sub-pixel fillRect path
-    private final BufferedImage[] starSprites;
-    private final Color[]         subPixelColors;
+    // GL resources: one dynamic interleaved VBO, re-uploaded every frame
+    private int vao, vbo;
+    private final float[] starData = new float[STAR_COUNT * FLOATS_PER_STAR];
 
     // Engine power throttle, 0 (idle) .. 1 (full thrust)
     private double enginePower = INITIAL_THRUST;
@@ -115,49 +110,26 @@ public class StarfieldBehavior implements Behavior {
         baseSize    = new float[STAR_COUNT];
         starName    = new String[STAR_COUNT];
 
-        starSprites    = new BufferedImage[SPECTRAL_TYPES.length * STAR_ALPHA_LEVELS];
-        subPixelColors = new Color[SPECTRAL_TYPES.length * STAR_ALPHA_LEVELS];
-        for (int t = 0; t < SPECTRAL_TYPES.length; t++) {
-            double[] spec = SPECTRAL_TYPES[t];
-            for (int l = 0; l < STAR_ALPHA_LEVELS; l++) {
-                float alpha = (l + 1f) / STAR_ALPHA_LEVELS;
-                int idx = t * STAR_ALPHA_LEVELS + l;
-                starSprites[idx] = makeStarSprite(
-                    (int) spec[1], (int) spec[2], (int) spec[3], alpha);
-                subPixelColors[idx] = new Color(
-                    (int) spec[1], (int) spec[2], (int) spec[3], (int) (alpha * 255));
-            }
-        }
-
         for (int i = 0; i < STAR_COUNT; i++) initStar(i, true);
     }
 
-    /**
-     * Radial star sprite: hard bright core in the inner 1/GLOW_FACTOR of the
-     * radius, then a fast falloff into a faint diffuse glow. The brightness
-     * level is baked into the pixels (premultiplied ARGB) so drawing needs no
-     * per-star AlphaComposite.
-     */
-    private static BufferedImage makeStarSprite(int r, int g, int b, float alpha) {
-        BufferedImage img = new BufferedImage(STAR_SPRITE_SIZE, STAR_SPRITE_SIZE,
-                                              BufferedImage.TYPE_INT_ARGB_PRE);
-        Graphics2D g2 = img.createGraphics();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                            RenderingHints.VALUE_ANTIALIAS_ON);
-        float half = STAR_SPRITE_SIZE / 2f;
-        float core = 1f / GLOW_FACTOR;   // core/glow boundary, fraction of radius
-        g2.setPaint(new RadialGradientPaint(
-            half, half, half,
-            new float[] {0f, core * 0.9f, core * 1.15f, 1f},
-            new Color[] {
-                new Color(r, g, b, (int) (255 * alpha)),
-                new Color(r, g, b, (int) (255 * alpha)),
-                new Color(r, g, b, (int) (60 * alpha)),
-                new Color(r, g, b, 0),
-            }));
-        g2.fillRect(0, 0, STAR_SPRITE_SIZE, STAR_SPRITE_SIZE);
-        g2.dispose();
-        return img;
+    @Override
+    public void init(RenderContext ctx) {
+        vao = glGenVertexArrays();
+        glBindVertexArray(vao);
+        vbo = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, (long) starData.length * Float.BYTES, GL_DYNAMIC_DRAW);
+        int stride = FLOATS_PER_STAR * Float.BYTES;
+        glEnableVertexAttribArray(0);                                  // position
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);
+        glEnableVertexAttribArray(1);                                  // size
+        glVertexAttribPointer(1, 1, GL_FLOAT, false, stride, 12);
+        glEnableVertexAttribArray(2);                                  // brightness
+        glVertexAttribPointer(2, 1, GL_FLOAT, false, stride, 16);
+        glEnableVertexAttribArray(3);                                  // colour
+        glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 20);
+        glBindVertexArray(0);
     }
 
     /**
@@ -249,50 +221,38 @@ public class StarfieldBehavior implements Behavior {
     }
 
     @Override
-    public void draw(Entity entity, Graphics2D g) {
+    public void draw(Entity entity, RenderContext ctx) {
+        // Projection, point size, inverse-square brightness and the radial
+        // core+halo profile all run in star.vert / star.frag
         for (int i = 0; i < STAR_COUNT; i++) {
-            double z = sz[i];
-            if (z <= NEAR_Z) continue;
-
-            double px = cx + sx[i] / z * projScaleX;
-            double py = cy + sy[i] / z * projScaleY;
-
-            // Cull off-screen stars (keep a small margin for glow bleed)
-            if (px < -20 || px > cx * 2 + 20 || py < -20 || py > cy * 2 + 20) continue;
-
-            // Apparent brightness — inverse-square law (reference distance = 1)
-            float ab = Math.clamp((float) (brightness[i] / (z * z)), 0f, 1f);
-            if (ab * 255 < 8) continue;
-
-            // Perspective-scaled radius
-            float r = Math.clamp((float) (baseSize[i] / z), 0.4f, 8f);
-
-            int level   = Math.min(STAR_ALPHA_LEVELS - 1, (int) (ab * STAR_ALPHA_LEVELS));
-            int variant = spectralIdx[i] * STAR_ALPHA_LEVELS + level;
-
-            if (r < 1.0f) {
-                // Sub-pixel star: single bright pixel
-                g.setColor(subPixelColors[variant]);
-                g.fillRect((int) px, (int) py, 1, 1);
-            } else {
-                // One sprite blit renders core + diffuse glow together
-                float gr = r * GLOW_FACTOR;
-                g.drawImage(starSprites[variant],
-                            (int) (px - gr), (int) (py - gr),
-                            (int) (gr * 2), (int) (gr * 2), null);
-            }
+            int o = i * FLOATS_PER_STAR;
+            double[] spec = SPECTRAL_TYPES[spectralIdx[i]];
+            starData[o]     = (float) sx[i];
+            starData[o + 1] = (float) sy[i];
+            starData[o + 2] = (float) sz[i];
+            starData[o + 3] = baseSize[i];
+            starData[o + 4] = brightness[i];
+            starData[o + 5] = (float) (spec[1] / 255.0);
+            starData[o + 6] = (float) (spec[2] / 255.0);
+            starData[o + 7] = (float) (spec[3] / 255.0);
         }
 
-        drawStarLabels(g);
-        drawFpsHud(g);
-        drawThrustHud(g);
-        if (input.showHelp) drawControlsHelp(g);
-    }
+        ShaderProgram shader = ctx.starShader;
+        shader.use();
+        shader.setVec2("uViewport", cx * 2, cy * 2);
+        shader.setVec2("uProjScale", (float) projScaleX, (float) projScaleY);
+        shader.setFloat("uNearZ", (float) NEAR_Z);
 
-    private void drawFpsHud(Graphics2D g) {
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, FPS_FONT_SIZE));
-        g.setColor(Color.WHITE);
-        g.drawString(fps + " FPS", FPS_X, FPS_Y);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, starData);
+        glBindVertexArray(vao);
+        glDrawArrays(GL_POINTS, 0, STAR_COUNT);
+        glBindVertexArray(0);
+
+        drawStarLabels(ctx);
+        drawFpsHud(ctx);
+        drawThrustHud(ctx);
+        if (input.showHelp) drawControlsHelp(ctx);
     }
 
     /**
@@ -300,9 +260,9 @@ public class StarfieldBehavior implements Behavior {
      * a label that fades in on approach — 9 pt white text inside a dark-grey
      * frame over a translucent dark-grey background.
      */
-    private void drawStarLabels(Graphics2D g) {
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, NAME_FONT_SIZE));
-        FontMetrics fm = g.getFontMetrics();
+    private void drawStarLabels(RenderContext ctx) {
+        int ascent = ctx.text.ascent(NAME_FONT_SIZE, false);
+        int th     = ctx.text.lineHeight(NAME_FONT_SIZE, false);
 
         for (int i = 0; i < STAR_COUNT; i++) {
             String name = starName[i];
@@ -318,70 +278,67 @@ public class StarfieldBehavior implements Behavior {
                 (float) ((NAME_Z_THRESHOLD - z) / (NAME_Z_THRESHOLD - NAME_FULL_Z)), 0f, 1f);
 
             float r  = Math.clamp((float) (baseSize[i] / z), 0.4f, 8f);
-            int   tw = fm.stringWidth(name);
-            int   th = fm.getAscent() + fm.getDescent();
+            int   tw = ctx.text.stringWidth(name, NAME_FONT_SIZE, false);
             int   lx = (int) (px + r + 8);
             int   ly = (int) (py - th / 2.0 - NAME_PAD_Y);
             int   boxW = tw + NAME_PAD_X * 2;
             int   boxH = th + NAME_PAD_Y * 2;
 
-            // Translucent dark-grey background
-            g.setColor(new Color(38, 42, 48, (int) (fade * 150)));
-            g.fillRect(lx, ly, boxW, boxH);
-            // Dark-grey frame
-            g.setColor(new Color(85, 90, 100, (int) (fade * 210)));
-            g.drawRect(lx, ly, boxW, boxH);
+            // Translucent dark-grey background + dark-grey frame
+            ctx.quads.fillRounded(lx, ly, boxW, boxH, 0,
+                38 / 255f, 42 / 255f, 48 / 255f, fade * 150 / 255f,
+                85 / 255f, 90 / 255f, 100 / 255f, fade * 210 / 255f);
             // White label text
-            g.setColor(new Color(255, 255, 255, (int) (fade * 255)));
-            g.drawString(name, lx + NAME_PAD_X, ly + NAME_PAD_Y + fm.getAscent());
+            ctx.text.draw(name, lx + NAME_PAD_X, ly + NAME_PAD_Y + ascent,
+                NAME_FONT_SIZE, false, 1f, 1f, 1f, fade);
         }
     }
 
-    private void drawThrustHud(Graphics2D g) {
+    private void drawFpsHud(RenderContext ctx) {
+        ctx.text.draw(fps + " FPS", FPS_X, FPS_Y, FPS_FONT_SIZE, false, 1f, 1f, 1f, 1f);
+    }
+
+    private void drawThrustHud(RenderContext ctx) {
         int panelHeight = cy * 2;
         int gaugeBottom = panelHeight - GAUGE_MARGIN;
         int gaugeTop    = gaugeBottom - GAUGE_HEIGHT;
 
         // Outline
-        g.setColor(new Color(255, 255, 255, 110));
-        g.drawRect(GAUGE_X, gaugeTop, GAUGE_WIDTH, GAUGE_HEIGHT);
+        ctx.quads.outline(GAUGE_X, gaugeTop, GAUGE_WIDTH, GAUGE_HEIGHT,
+            1f, 1f, 1f, 110 / 255f);
 
         // Power fill, bottom-up
         int fillHeight = (int) Math.round(GAUGE_HEIGHT * enginePower);
-        g.setColor(thrustColor(enginePower));
-        g.fillRect(GAUGE_X + 1, gaugeBottom - fillHeight, GAUGE_WIDTH - 1, fillHeight);
+        Color c = thrustColor(enginePower);
+        ctx.quads.fill(GAUGE_X + 1, gaugeBottom - fillHeight, GAUGE_WIDTH - 1, fillHeight,
+            c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f, 1f);
 
         // Speed readout, fictional but proportional to engine power
         double speedParsecPerSec = enginePower * MAX_SPEED_PARSEC;
-        g.setColor(Color.WHITE);
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 12f));
-        g.drawString(String.format("%.2f pc/s", speedParsecPerSec),
-            GAUGE_X + GAUGE_WIDTH + 10, gaugeBottom);
+        ctx.text.draw(String.format("%.2f pc/s", speedParsecPerSec),
+            GAUGE_X + GAUGE_WIDTH + 10, gaugeBottom, 12f, false, 1f, 1f, 1f, 1f);
     }
 
-    private void drawControlsHelp(Graphics2D g) {
+    private void drawControlsHelp(RenderContext ctx) {
         int panelWidth  = cx * 2;
         int panelHeight = cy * 2;
         int boxHeight   = 22 + HELP_ROWS.length * HELP_ROW_H;
         int x = panelWidth  - HELP_WIDTH  - HELP_MARGIN;
         int y = panelHeight - boxHeight   - HELP_MARGIN;
 
-        g.setColor(new Color(15, 18, 26, 140));
-        g.fillRoundRect(x, y, HELP_WIDTH, boxHeight, 10, 10);
-        g.setColor(new Color(255, 255, 255, 70));
-        g.drawRoundRect(x, y, HELP_WIDTH, boxHeight, 10, 10);
+        ctx.quads.fillRounded(x, y, HELP_WIDTH, boxHeight, 10,
+            15 / 255f, 18 / 255f, 26 / 255f, 140 / 255f,
+            1f, 1f, 1f, 70 / 255f);
 
-        g.setFont(g.getFont().deriveFont(Font.BOLD, 12f));
-        g.setColor(new Color(255, 255, 255, 200));
-        g.drawString("Controles (H)", x + 12, y + 17);
+        ctx.text.draw("Controles (H)", x + 12, y + 17, 12f, true,
+            1f, 1f, 1f, 200 / 255f);
 
-        g.setFont(g.getFont().deriveFont(Font.PLAIN, 11f));
         int rowY = y + 17 + HELP_ROW_H;
         for (String[] row : HELP_ROWS) {
-            g.setColor(new Color(160, 200, 255, 220));
-            g.drawString(row[0], x + 12, rowY);
-            g.setColor(new Color(220, 220, 220, 200));
-            g.drawString(row[1], x + HELP_KEY_COL, rowY);
+            ctx.text.draw(row[0], x + 12, rowY, 11f, false,
+                160 / 255f, 200 / 255f, 1f, 220 / 255f);
+            ctx.text.draw(row[1], x + HELP_KEY_COL, rowY, 11f, false,
+                220 / 255f, 220 / 255f, 220 / 255f, 200 / 255f);
             rowY += HELP_ROW_H;
         }
     }

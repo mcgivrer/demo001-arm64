@@ -1,13 +1,18 @@
-# Chapitre 7 — Boucle de jeu et intégration Swing
+# Chapitre 7 — Boucle de jeu GLFW et delta-time
 
-## Modèle de threading Swing
+## Modèle de threading
 
-Java Swing impose un modèle **single-threaded** : tous les composants graphiques doivent
-être créés et manipulés exclusivement sur l'**EDT** (Event Dispatch Thread). Ce thread
-gère la peinture, les événements utilisateur (clavier, souris) et les repaints.
+Depuis la migration OpenGL (voir [chapitre 12](12-opengl-pipeline.md)), la boucle de
+jeu est une **boucle classique sur le thread principal** : GLFW impose que la fenêtre
+et le contexte GL soient manipulés sur le thread qui a appelé `glfwInit()`. Le
+`main thread` ne se termine donc plus après l'initialisation — il *est* la boucle de
+jeu, et la JVM vit tant que `runRenderLoop()` tourne. L'EDT Swing a disparu : AWT ne
+sert plus qu'à rasteriser le texte, en mode headless, sans thread graphique.
 
-Le `main thread` lance l'application puis se termine — c'est l'EDT (non-daemon) qui
-maintient la JVM en vie jusqu'à la fermeture de la fenêtre.
+Le cadencement n'est plus assuré par un `javax.swing.Timer` mais par la
+**synchronisation verticale** : `glfwSwapInterval(1)` fait bloquer `swapBuffers()`
+jusqu'au prochain rafraîchissement de l'écran (60 Hz), ce qui rythme naturellement
+la boucle à ~16,7 ms par frame.
 
 ![Timeline de frame](illustrations/starfield-render.svg)
 
@@ -19,31 +24,27 @@ maintient la JVM en vie jusqu'à la fermeture de la fenêtre.
 sequenceDiagram
     participant JVM as main thread
     participant Main
-    participant EDT as Swing EDT
-    participant Timer as javax.swing.Timer
+    participant W as GLWindow / GLFW
     participant Entities
 
     JVM->>Main: main(args)
-    Main->>Main: new Main() — loadConfig, loadTitle
+    Main->>Main: new Main() — loadConfig, loadBundle
     Main->>Main: run(args) — initEntities()
-    Main->>EDT: SwingUtilities.invokeLater(createAndShowWindow)
-    Note over JVM: main thread termine ici
+    Main->>W: new GLWindow() — contexte ES 3.0, callbacks, vsync
+    Main->>Main: new RenderContext() — compile les shaders
+    Main->>Entities: entity.init(ctx) — VAO/VBO/FBO
 
-    EDT->>EDT: new JFrame(title)
-    EDT->>EDT: new GamePanel(entities)
-    EDT->>EDT: frame.setVisible(true)
-    EDT->>Timer: new Timer(16, listener) + start()
-
-    loop toutes les ≈16 ms
-        Timer->>Main: actionPerformed(e)
+    loop tant que !shouldClose()
+        Main->>W: pollEvents() → InputState
         Main->>Main: Δt = (now - lastTime) / 1e9
         Main->>Entities: entity.update(Δt)
-        Main->>EDT: panel.repaint()
-        EDT->>EDT: paintComponent(g)
-        EDT->>Entities: entity.draw(g2)
+        Main->>Main: glClear
+        Main->>Entities: entity.draw(ctx)
+        Main->>W: swapBuffers() — bloque jusqu'au vsync
     end
 
-    EDT->>JVM: EXIT_ON_CLOSE → System.exit(0)
+    Main->>W: destroy() — glfwTerminate
+    Main->>JVM: retour de main()
 ```
 
 ---
@@ -60,20 +61,27 @@ state INIT {
     [*] --> LoadConfig
     LoadConfig --> LoadI18n
     LoadI18n --> InitEntities
-    InitEntities --> [*]
+    InitEntities --> CreateGLContext
+    CreateGLContext --> CompileShaders
+    CompileShaders --> [*]
 }
 
-INIT --> RUNNING : SwingUtilities.invokeLater\n+ Timer.start()
+INIT --> RUNNING : entrée dans la boucle GLFW
 
 state RUNNING {
-    [*] --> UpdatePhysics
-    UpdatePhysics --> Repaint
-    Repaint --> UpdatePhysics : Timer tick ≈16 ms
+    [*] --> PollEvents
+    PollEvents --> UpdatePhysics
+    UpdatePhysics --> DrawGL
+    DrawGL --> SwapBuffers
+    SwapBuffers --> PollEvents : vsync ≈16,7 ms
 }
 
-RUNNING --> CLOSED : JFrame.EXIT_ON_CLOSE\n(bouton fermer / Alt+F4)
+RUNNING --> CONFIRM : ESC (overlay)
+CONFIRM --> RUNNING : ESC (annuler)
+CONFIRM --> CLOSED : ENTRÉE (confirmer)
+RUNNING --> CLOSED : bouton fermer / Alt+F4
 
-CLOSED --> [*]
+CLOSED --> [*] : glfwTerminate
 @enduml
 ```
 
@@ -81,9 +89,9 @@ CLOSED --> [*]
 
 ## Delta-time (Δt)
 
-Le timer se déclenche toutes les 16 ms, mais la précision réelle dépend du scheduler
-de l'OS. Utiliser un **delta-time mesuré** plutôt qu'un pas fixe garantit une
-simulation stable quelle que soit la charge système :
+Le vsync cadence la boucle à ~16,7 ms, mais la durée réelle d'une frame varie
+(charge système, frame ratée). Utiliser un **delta-time mesuré** plutôt qu'un pas
+fixe garantit une simulation stable quelle que soit la cadence effective :
 
 $$\Delta t = \frac{t_{\text{now}} - t_{\text{last}}}{10^9} \quad \text{(secondes)}$$
 
@@ -112,11 +120,10 @@ n'est pas affecté par les corrections d'horloge système (NTP, etc.).
 
 | Paramètre | Valeur | Commentaire |
 |-----------|--------|-------------|
-| Délai Timer | 16 ms | ≈ 62,5 fps théorique |
-| Fréquence effective | ~60 fps | Dépend du scheduler et du temps de rendu |
-| Étoiles simulées | 500 | Coût O(N) par frame |
-| Opérations par étoile | 6 mul + 6 add (rotations) + 1 division (travel) | Pas de matrice allouée |
-| Budget rendu mesuré (pire cas) | ~5,7 ms/frame | ~2,7 ms étoiles (sprites, ch. 6) + ~2,7 ms nuages (cache, ch. 11) + clear |
+| Cadencement | vsync (`glfwSwapInterval(1)`) | 60 Hz → ≈16,7 ms/frame |
+| Étoiles simulées | 500 | update CPU O(N), rendu en un seul draw call |
+| Opérations par étoile (update) | 6 mul + 6 add (rotations) + 1 division (travel) | Pas de matrice allouée |
+| Budget rendu mesuré (pire cas, llvmpipe) | ~8-10 ms/frame | clear ~0,5 + nuages ~4 + étoiles/HUD ~5,8 (voir ch. 12) |
 
 ### Afficheur de FPS
 
@@ -146,46 +153,52 @@ coût de mesure est négligeable (un compteur et une addition par frame).
 
 ---
 
-## GamePanel — intégration Swing
-
-`GamePanel` étend `JPanel` et surcharge `paintComponent` — la méthode standard
-recommandée par Swing pour le dessin personnalisé :
+## Extrait de code — runRenderLoop
 
 ```java
-private static class GamePanel extends JPanel {
-    private final List<Entity> entities;
+GLWindow window = new GLWindow(windowWidth, windowHeight, windowTitle, inputState);
+RenderContext ctx = new RenderContext(windowWidth, windowHeight);
+for (Entity entity : entities) entity.init(ctx);
 
-    GamePanel(List<Entity> entities) {
-        this.entities = entities;
-        setBackground(Color.BLACK);
-    }
+glDisable(GL_DEPTH_TEST);
+glEnable(GL_BLEND);
+glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);   // équivalent SrcOver Java2D
+glClearColor(0f, 0f, 0f, 1f);
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);   // efface le fond (Color.BLACK)
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                            RenderingHints.VALUE_ANTIALIAS_ON);
-        for (Entity e : entities) e.draw(g2);
-    }
+lastTime = System.nanoTime();
+while (!window.shouldClose()) {
+    window.pollEvents();
+
+    long now = System.nanoTime();
+    double dt = (now - lastTime) / 1_000_000_000.0;
+    lastTime = now;
+
+    for (Entity entity : entities) entity.update(dt);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    for (Entity entity : entities) entity.draw(ctx);
+    if (window.isConfirmQuit()) drawExitOverlay(ctx);
+
+    window.swapBuffers();
 }
+window.destroy();
 ```
 
-L'anti-aliasing est activé via `RenderingHints` pour que les cercles des étoiles
-soient lissés. L'appel à `super.paintComponent(g)` est **obligatoire** : il efface
-le contenu de la frame précédente avant de dessiner la nouvelle.
+Il n'y a pas de test de profondeur (`GL_DEPTH_TEST` désactivé) : la scène est
+composée **de l'arrière vers l'avant** par blending alpha, exactement comme
+l'ancien pipeline Java2D — l'ordre d'insertion des behaviors est l'ordre de
+superposition.
 
 ---
 
-## Anti-aliasing et performance
+## Leçon de performance
 
-`VALUE_ANTIALIAS_ON` reste activé dans `paintComponent`, mais il ne concerne plus
-que le texte et les formes du HUD : les étoiles et les nuages sont des `drawImage`
-de sprites pré-rendus, insensibles à ce hint. La leçon de performance retenue
-(mesurée sur l'Orange Pi) : en rendu logiciel, un blit d'image coûte ~1-2 ns/pixel,
-alors que `g.fill(new Ellipse2D)` paie une rasterisation générique par forme —
-les 500 étoiles en ellipses coûtaient ~25 ms/frame, en sprites ~2,7 ms
-(voir [chapitre 6](06-perspective-projection.md)).
+Sur cette machine, le rendu OpenGL passe par **llvmpipe** (rasteriseur logiciel
+Mesa, pas de driver GPU) : chaque pixel blendé coûte ~12 ns. Le budget se gère
+donc comme sur le CPU : limiter le nombre de pixels écrits (rectangle englobant
+des nuages, cache FBO — [chapitre 11](11-magellanic-clouds.md)) et le nombre de
+passes plein écran. Les formules et techniques restent valables telles quelles
+sur un vrai GPU, où ces coûts deviennent négligeables.
 
 ---
 
@@ -193,3 +206,4 @@ les 500 étoiles en ellipses coûtaient ~25 ms/frame, en sprites ~2,7 ms
 > - [01 — Architecture générale](01-architecture.md)
 > - [02 — Pattern Entity / Behavior](02-entity-behavior.md)
 > - [05 — Rotations 3D](05-rotations-3d.md)
+> - [12 — Pipeline OpenGL](12-opengl-pipeline.md)

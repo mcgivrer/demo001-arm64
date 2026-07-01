@@ -2,18 +2,21 @@
 
 ## Vue d'ensemble
 
-**demo001** est une application de bureau Java/Swing qui anime un champ d'étoiles 3D en vol
-continu. Elle est structurée autour d'un moteur de rendu minimal, sans dépendance externe,
-compilée avec Java 26 et packagée via un script `build.sh` maison.
+**demo001** est une application de bureau Java qui anime un champ d'étoiles 3D en vol
+continu, rendue en **OpenGL ES 3.0** via LWJGL 3 (fenêtre GLFW, shaders GLSL — voir
+[chapitre 12](12-opengl-pipeline.md)). Elle est compilée avec Java 26 et packagée via
+un script `build.sh` maison qui télécharge les jars LWJGL dans `lib/`.
 
-L'architecture repose sur trois couches :
+L'architecture repose sur quatre couches :
 
-1. **Infrastructure applicative** (`Main`) — chargement de la configuration, localisation,
-   gestion de la fenêtre Swing et cadençage de la boucle de jeu.
-2. **Modèle de scène** (`Entity`, `Behavior`) — graphe d'objets génériques avec composition
+1. **Infrastructure applicative** (`Main`, `GLWindow`) — chargement de la configuration,
+   localisation, fenêtre GLFW + contexte GL et boucle de jeu.
+2. **Infrastructure de rendu** (`RenderContext`, `ShaderProgram`, `QuadRenderer`,
+   `TextRenderer`) — shaders partagés et primitives HUD.
+3. **Modèle de scène** (`Entity`, `Behavior`) — graphe d'objets génériques avec composition
    de comportements.
-3. **Comportements métier** (`ParticleSystem`, `StarfieldBehavior`) — simulation physique
-   et rendu du champ d'étoiles.
+4. **Comportements métier** (`ParticleSystem`, `StarfieldBehavior`,
+   `MagellanicCloudsBehavior`) — simulation physique et rendu.
 
 ![Architecture overview](illustrations/architecture-overview.svg)
 
@@ -32,15 +35,23 @@ classDiagram
         +main(String[] args)
         +run(String[] args)
         -initEntities()
-        -createAndShowWindow()
-        -startGameLoop(GamePanel)
+        -runRenderLoop()
+        -drawExitOverlay(RenderContext)
         -loadConfig() Properties
-        -loadTitle(Locale) String
     }
 
-    class GamePanel {
-        -List~Entity~ entities
-        +paintComponent(Graphics)
+    class GLWindow {
+        -long handle
+        -boolean confirmQuit
+        +pollEvents()
+        +swapBuffers()
+        +shouldClose() boolean
+    }
+
+    class RenderContext {
+        +ShaderProgram starShader, cloudShader, quadShader, textShader, blitShader
+        +QuadRenderer quads
+        +TextRenderer text
     }
 
     class Entity {
@@ -49,14 +60,16 @@ classDiagram
         +double dx, dy
         -List~Behavior~ behaviors
         +addBehavior(Behavior)
+        +init(RenderContext)
         +update(double dt)
-        +draw(Graphics2D)
+        +draw(RenderContext)
     }
 
     class Behavior {
         <<interface>>
+        +init(RenderContext)
         +update(Entity, double dt)
-        +draw(Entity, Graphics2D)
+        +draw(Entity, RenderContext)
     }
 
     class ParticleSystem {
@@ -67,39 +80,40 @@ classDiagram
         -double velYaw, velPitch, velRoll
         +double cosYaw, sinYaw, cosPitch, sinPitch, cosRoll, sinRoll
         +update(double dt)
+        +orientationColumnMajor() float[]
+        +applyOrientation(double[], double[])
     }
 
     class StarfieldBehavior {
         -double[] sx, sy, sz
         -double[] travelSpeed
-        -Color[] starColor
+        -int[] spectralIdx
         -float[] brightness, baseSize
         -String[] starName
         -long seed
         -long spawnCounter
+        -int vao, vbo
         +update(Entity, double dt)
-        +draw(Entity, Graphics2D)
+        +draw(Entity, RenderContext)
         -initStar(int i, boolean scatter)
         -subSeed(long seed, long n)$ long
     }
 
     class MagellanicCloudsBehavior {
-        -double[] vx, vy, vz
-        -float[] size
-        -int[] variant
-        -BufferedImage[] sprites
-        -BufferedImage cache
+        -float[] puffData
+        -int vao, fbo, fboTexture
         +update(Entity, double dt)
-        +draw(Entity, Graphics2D)
+        +draw(Entity, RenderContext)
     }
 
     class StarNameGenerator {
         +generate(Random rng)$ String
     }
 
-    Main --> GamePanel : crée
-    Main "1" --> "*" Entity : possède
-    GamePanel --> "*" Entity : dessine
+    Main --> GLWindow : crée
+    Main --> RenderContext : crée
+    Main "1" --> "*" Entity : possède et dessine
+    GLWindow --> InputState : callbacks GLFW
     Entity "1" --> "*" Behavior : délègue
     ParticleSystem --|> Entity : étend
     StarfieldBehavior ..|> Behavior : implémente
@@ -108,8 +122,9 @@ classDiagram
     ParticleSystem --> StarfieldBehavior : instancie
     ParticleSystem --> MagellanicCloudsBehavior : instancie (arrière-plan)
     StarfieldBehavior --> CameraState : lit cos/sin
-    MagellanicCloudsBehavior --> CameraState : lit cos/sin
+    MagellanicCloudsBehavior --> CameraState : uniform mat3
     StarfieldBehavior --> StarNameGenerator : nomme les étoiles
+    Behavior ..> RenderContext : draw(ctx)
 ```
 
 ---
@@ -122,35 +137,30 @@ title Cycle de vie — demo001
 
 participant "JVM / main thread" as JVM
 participant "Main" as M
-participant "Swing EDT" as EDT
-participant "javax.swing.Timer" as T
+participant "GLWindow / GLFW" as W
+participant "RenderContext" as C
 participant "Entity / Behavior" as E
 
 JVM -> M : main(args)
 activate M
-M -> M : new Main()\nloadConfig()\nloadTitle(locale)
+M -> M : new Main()\nloadConfig()\nloadBundle(locale)
 M -> M : run(args)\ninitEntities()
-M -> EDT : SwingUtilities.invokeLater()
-deactivate M
+M -> W : new GLWindow()\ncontexte OpenGL ES 3.0 + vsync
+M -> C : new RenderContext()\ncompile les 5 shaders
+M -> E : entity.init(ctx)\nVAO / VBO / FBO
 
-activate EDT
-EDT -> EDT : createAndShowWindow()\nnew JFrame() / new GamePanel()
-EDT -> T : new Timer(16 ms, listener)
-EDT -> T : start()
-deactivate EDT
-
-loop toutes les 16 ms
-    T -> M : ActionListener.actionPerformed()
-    activate M
+loop tant que !window.shouldClose()
+    M -> W : pollEvents() → InputState
+    M -> M : Δt (nanoTime)
     M -> E : entity.update(dt)
-    M -> EDT : panel.repaint()
-    deactivate M
-    activate EDT
-    EDT -> E : entity.draw(g2)
-    deactivate EDT
+    M -> M : glClear
+    M -> E : entity.draw(ctx)
+    M -> M : overlay ESC éventuel
+    M -> W : swapBuffers() — vsync
 end
 
-EDT -> JVM : EXIT_ON_CLOSE → System.exit
+M -> W : destroy()\nglfwTerminate
+M -> JVM : retour de main → exit
 @enduml
 ```
 
@@ -160,13 +170,13 @@ EDT -> JVM : EXIT_ON_CLOSE → System.exit
 
 ```mermaid
 flowchart LR
-    A([Timer tick\n≈16 ms]) --> B[Calcul Δt\nnanos → secondes]
-    B --> C[entity.update Δt]
-    C --> D[StarfieldBehavior\n.update — physique 3D]
-    D --> E[panel.repaint]
-    E --> F[paintComponent\nGraphics2D]
-    F --> G[entity.draw g2]
-    G --> H[StarfieldBehavior\n.draw — rendu 2D]
+    A([vsync ≈16 ms]) --> B[pollEvents\nGLFW → InputState]
+    B --> C[Calcul Δt\nnanos → secondes]
+    C --> D[entity.update Δt\nphysique 3D CPU]
+    D --> E[glClear]
+    E --> F[MagellanicClouds.draw\nFBO cache + blit]
+    F --> G[Starfield.draw\npoints + étiquettes + HUD]
+    G --> H[swapBuffers]
     H --> I([Frame affichée])
 ```
 
@@ -190,4 +200,5 @@ La locale est construite via `Locale.of(langCode.toLowerCase())` et passée à
 > Chapitres suivants :
 > - [02 — Pattern Entity / Behavior](02-entity-behavior.md)
 > - [03 — ParticleSystem](03-particle-system.md)
-> - [07 — Boucle de jeu et Swing](07-game-loop.md)
+> - [07 — Boucle de jeu](07-game-loop.md)
+> - [12 — Pipeline OpenGL](12-opengl-pipeline.md)

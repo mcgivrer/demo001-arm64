@@ -1,6 +1,8 @@
-import java.awt.Graphics2D;
-
 public interface Behavior {
     void update(Entity entity, double dt);
-    void draw(Entity entity, Graphics2D g);
+
+    /** One-time GL resource creation (VBOs, textures); GL context is current. */
+    default void init(RenderContext ctx) {}
+
+    void draw(Entity entity, RenderContext ctx);
 }

@@ -17,7 +17,15 @@
       "Bash(javac -cp target/classes -d /tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad /tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad/CloudBench.java)",
       "Bash(java -Djava.awt.headless=true -cp target/classes:/tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad CloudBench)",
       "Bash(javac -cp target/classes -d /tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad /tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad/CloudBench2.java)",
-      "Bash(java -Djava.awt.headless=true -cp target/classes:/tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad CloudBench2)"
+      "Bash(java -Djava.awt.headless=true -cp target/classes:/tmp/claude-1000/-home-orangepi-Projects-java-demo001/794333da-d912-43e4-a673-9c089478a7e5/scratchpad CloudBench2)",
+      "Bash(./build.sh deps *)",
+      "Bash(printf '\\\\napp.exit.confirm.hint=Enter = yes   \\\\\\\\u00b7   Esc = no\\\\n')",
+      "Bash(printf '\\\\napp.exit.confirm.hint=Entr\\\\\\\\u00e9e = oui   \\\\\\\\u00b7   \\\\\\\\u00c9chap = non\\\\n')",
+      "Bash(printf '\\\\napp.exit.confirm.hint=Enter = ja   \\\\\\\\u00b7   Esc = nein\\\\n')",
+      "Bash(printf '\\\\napp.exit.confirm.hint=Intro = s\\\\\\\\u00ed   \\\\\\\\u00b7   Esc = no\\\\n')",
+      "Bash(printf '\\\\napp.exit.confirm.hint=Invio = s\\\\\\\\u00ec   \\\\\\\\u00b7   Esc = no\\\\n')",
+      "Bash(DISPLAY=:0 java -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp target/classes:lib/*:__TRACKED_VAR__ GLBench)",
+      "Bash(LP_NUM_THREADS=8 DISPLAY=:0 java -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp target/classes:lib/*:__TRACKED_VAR__ GLBench)"
     ]
   }
 }

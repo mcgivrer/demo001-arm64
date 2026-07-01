@@ -1,4 +1,3 @@
-import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,11 +14,15 @@ public class Entity {
 
     public void addBehavior(Behavior b) { behaviors.add(b); }
 
+    public void init(RenderContext ctx) {
+        for (Behavior b : behaviors) b.init(ctx);
+    }
+
     public void update(double dt) {
         for (Behavior b : behaviors) b.update(this, dt);
     }
 
-    public void draw(Graphics2D g) {
-        for (Behavior b : behaviors) b.draw(this, g);
+    public void draw(RenderContext ctx) {
+        for (Behavior b : behaviors) b.draw(this, ctx);
     }
 }

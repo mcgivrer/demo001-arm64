@@ -21,12 +21,13 @@ partagé par toutes les couches.
 ## CameraState — une rotation, plusieurs couches
 
 `ParticleSystem.update()` intègre la caméra **exactement une fois par frame**, avant
-la mise à jour des `Behavior`. Le résultat est exposé sous forme de paires
-cos/sin précalculées que chaque couche consomme :
+la mise à jour des `Behavior`. Le résultat est exposé sous deux formes : des
+paires cos/sin précalculées (consommées par la rotation CPU des étoiles) et la
+**matrice d'orientation cumulée** M (uniform mat3 du shader des nuages) :
 
 ```mermaid
 sequenceDiagram
-    participant M as Main (Timer 16 ms)
+    participant M as Main (boucle GLFW)
     participant P as ParticleSystem
     participant C as CameraState
     participant N as MagellanicCloudsBehavior
@@ -34,14 +35,14 @@ sequenceDiagram
 
     M->>P: update(dt)
     P->>C: update(dt) — frein / lerp / dérive brownienne
-    Note over C: cosYaw, sinYaw, cosPitch,<br/>sinPitch, cosRoll, sinRoll
+    Note over C: cos/sin de la frame<br/>+ M ← R·M (matrice cumulée)
     P->>N: update(entity, dt)
-    N->>C: lit cos/sin
-    Note over N: rotation seule — pas de travel
+    Note over N: suivi de rotation<br/>(cache FBO) seulement
     P->>S: update(entity, dt)
     S->>C: lit cos/sin
-    Note over S: rotation + travel + respawn
-    M->>P: draw(g) — nuages d'abord (fond), étoiles ensuite
+    Note over S: rotation + travel + respawn (CPU)
+    M->>P: draw(ctx) — nuages d'abord (fond), étoiles ensuite
+    N->>C: orientationColumnMajor() → uniform mat3
 ```
 
 Sans cet état partagé, chaque couche intégrerait sa propre vitesse angulaire et les
@@ -136,19 +137,17 @@ class CameraState {
 }
 
 class MagellanicCloudsBehavior {
-    - vx, vy, vz : double[]  «directions unitaires»
-    - size : float[]
-    - variant : int[]  «teinte × niveau alpha»
-    - sprites : BufferedImage[24]  «alpha pré-cuit»
-    - cache : BufferedImage  «demi-résolution»
+    - puffData : float[230×8]  «dir, taille, alpha, teinte»
+    - vao, fbo, fboTexture : int
+    - compCenter[3], compExtent[3]  «bbox CPU»
     - rotSinceRefresh : double
     - generate(gen : Random)
     - scatterCloud(...)
     - scatterBridge(...)
     - scatterHii(...)
-    - refreshCache()
-    + update(Entity, dt)  «rotation seule»
-    + draw(Entity, Graphics2D)  «blit du cache, avant le starfield»
+    + init(ctx)  «VBO instancié + FBO ½ rés.»
+    + update(Entity, dt)  «suivi de rotation seulement»
+    + draw(Entity, ctx)  «FBO caché + blit bbox, avant le starfield»
 }
 
 interface Behavior
@@ -162,54 +161,62 @@ MagellanicCloudsBehavior --> CameraState : lit la rotation
 
 ---
 
-## Rendu : alpha pré-cuit + cache écran demi-résolution
+## Rendu GL : quads instanciés, FBO demi-résolution, bbox
 
 L'aspect nuageux naît de l'**accumulation** : chaque puff est presque invisible
 (α ≈ 0.06–0.11), mais leurs recouvrements construisent des densités variables —
 cœur lumineux, bords évanescents. Ce surdessin (10-20× dans le cœur d'un nuage)
-est aussi le principal coût : recomposer les ~230 puffs chaque frame montait à
-**~12 ms** quand le Grand Nuage occupait le quart de l'écran — incompatible avec
-60 FPS. Deux optimisations mesurées le ramènent à **~2,7 ms au pire cas** :
+est aussi le principal coût sous le rasteriseur logiciel llvmpipe (~12 ns par
+pixel blendé — voir [chapitre 12](12-opengl-pipeline.md)). Trois techniques le
+ramènent à **~4 ms au pire cas** :
 
-### 1. Translucidité pré-cuite dans les sprites
+### 1. Quads instanciés + matrice d'orientation
 
-Un `AlphaComposite.getInstance(SRC_OVER, α)` par puff force Java2D dans sa boucle
-de composition générique (10-20× plus lente qu'un blit). L'alpha de chaque puff
-est donc quantifié sur 8 niveaux et **cuit dans les pixels** du sprite à la
-construction : 3 teintes × 8 niveaux = 24 sprites 32×32 (`TYPE_INT_ARGB_PRE`,
-alpha prémultiplié → boucles de blit rapides). Le dessin d'un puff devient un
-`drawImage` nu, sans état de composition.
+Les 230 puffs (direction unitaire, taille angulaire, alpha, teinte) vivent dans
+un **VBO statique** dessiné par `glDrawArraysInstanced` — un quad de 4 sommets
+par puff, le dégradé radial étant évalué dans `cloud.frag`. Les points sprites
+étaient exclus : un puff projeté peut dépasser la taille maximale de point.
+La rotation caméra arrive par l'uniform **mat3 cumulée** de `CameraState`
+(`M ← R_{roll}·R_{pitch}·R_{yaw}·M` chaque frame, ré-orthonormalisée
+périodiquement) : la couche ne coûte **aucun travail CPU** par frame.
 
-### 2. Cache écran demi-résolution
+### 2. FBO demi-résolution + cache temporel
 
-Le surdessin n'est payé que lorsque la vue change réellement : les puffs sont
-composés dans un buffer hors-écran au **quart des pixels** (largeur et hauteur
-divisées par `CACHE_SCALE = 2` — invisible sur des dégradés aussi doux), et ce
-buffer n'est **rafraîchi** que si la rotation cumulée depuis le dernier rendu
-dépasse `REFRESH_ROT_EPS = 0.002` rad (≈ 0,7 px à l'écran) **et** qu'au moins
-`REFRESH_MIN_FRAMES = 4` frames se sont écoulées. Toutes les autres frames se
-réduisent à **un seul blit** mis à l'échelle ×2, limité au rectangle englobant
-du contenu réellement dessiné.
+Les puffs s'accumulent dans un **framebuffer object** au quart des pixels
+(`FBO_SCALE = 2`, invisible sur des dégradés aussi doux), en **alpha
+prémultiplié** (`glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`) — `cloud.frag`
+sort `vec4(tint·a, a)`. Cette passe n'est **rejouée** que si la rotation cumulée
+depuis le dernier rendu dépasse `REFRESH_ROT_EPS = 0.002` rad (≈ 0,7 px) et
+qu'au moins `REFRESH_MIN_FRAMES = 4` frames se sont écoulées : en dérive lente
+elle est rare, en rotation rapide son coût est amorti par 4 (retard borné
+≤ ~4 px sur un voile diffus, imperceptible).
 
-- En dérive brownienne lente : rafraîchissements rares, coût ≈ celui du blit.
-- En rotation rapide : rafraîchissement au plus 1 frame sur 4 — le fond accuse
-  un retard borné ≤ ~4 px, imperceptible sur un voile diffus, et le coût du
-  surdessin est amorti par 4.
+### 3. Composition restreinte au rectangle englobant
+
+Chaque frame, le CPU projette les **centres des 3 composants** (LMC, SMC, pont —
+via `CameraState.applyOrientation`) et leur étendue angulaire, calcule le
+rectangle englobant à l'écran, et le shader `blit` ne compose que cette zone.
+Nuages entièrement derrière la caméra → **aucune passe du tout**. Le blit se
+fait **sans blending** : le calque est la première chose dessinée après le
+`glClear`, et du prémultiplié sur fond noir égale la valeur source — une simple
+écriture, bien moins chère qu'une lecture-modification-écriture.
 
 ```mermaid
 flowchart TD
-    U[update] --> R[rotation des 230 puffs\ncos/sin de CameraState]
-    R --> S[rotSinceRefresh += yaw+pitch+roll]
-    D[draw] --> Q{cache invalide, ou\nrot > 0.002 rad\nET ≥ 4 frames ?}
-    Q -- oui --> F[refreshCache :\nclear + 230 drawImage\nen demi-résolution\n+ boîte englobante]
+    U[update] --> S[rotSinceRefresh +=\nyaw+pitch+roll de la frame]
+    D[draw] --> P[projection CPU des 3 centres\n→ bbox écran]
+    P --> V{bbox vide ?}
+    V -- oui --> Z([rien à dessiner])
+    V -- non --> Q{cache invalide, ou\nrot > 0.002 rad ET ≥ 4 frames ?}
+    Q -- oui --> F[Passe 1 : FBO ½ rés.\nglDrawArraysInstanced × 230\nalpha prémultiplié]
     Q -- non --> B
-    F --> B[un seul drawImage :\nboîte englobante\néchelle ×2]
+    F --> B[Passe 2 : blit du bbox\nsans blending]
 ```
 
-> Tentative écartée : dessiner chaque nuage comme un **imposteur** unique
-> (une grande image transformée par `AffineTransform`). Mesuré 3-12 ms : le blit
-> transformé de Java2D passe par un chemin générique ~16 ns/pixel, et la boîte
-> englobante d'un pont allongé est presque vide. Les benchmarks ont tranché.
+> Leçon conservée de la version Java2D : que le rendu soit logiciel côté Java ou
+> côté Mesa, le surdessin de fragments translucides domine — on le paie une fois
+> (cache), sur moins de pixels (demi-résolution), et seulement là où il y a du
+> contenu (bbox).
 
 ---
 

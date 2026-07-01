@@ -7,14 +7,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project uses a custom `build.sh` script instead of Maven or Gradle. Java 26 (Zulu) is required — managed via sdkman (`.sdkmanrc`).
 
 ```bash
+./build.sh deps     # download LWJGL 3.3.6 jars + linux-arm64 natives → lib/ (auto-run by build)
 ./build.sh          # compile sources → target/classes/
 ./build.sh build    # same as above
-./build.sh jar      # compile + package → target/demo001.jar
-./build.sh run      # run via JAR if present, otherwise via target/classes/
+./build.sh jar      # compile + package → target/demo001.jar (manifest Class-Path points at lib/)
+./build.sh run      # run via target/classes + lib/* classpath
 ./build.sh run arg1 arg2  # pass arguments to the application
 ./build.sh clean    # remove target/
 ./build.sh all      # build then run
 ```
+
+Dependencies: **LWJGL 3** (`lwjgl`, `lwjgl-glfw`, `lwjgl-opengles` + natives) downloaded
+from Maven Central into `lib/` (gitignored). The app runs with
+`-Djava.awt.headless=true` (AWT only rasterises text) and
+`--enable-native-access=ALL-UNNAMED` (LWJGL natives). Rendering requires OpenGL ES 3.0
+via EGL — on this machine Mesa provides it through `llvmpipe` (software rasteriser,
+no GPU driver), see `src/docs/12-opengl-pipeline.md`.
 
 ## Structure
 
@@ -27,7 +35,7 @@ This project uses a custom `build.sh` script instead of Maven or Gradle. Java 26
 
 ## Application entry point
 
-`Main.java` follows a constructor-init / `run(args)` lifecycle. The constructor loads `config.properties` and the `ResourceBundle`, resolving the locale from `app.language.default`. `run()` prints CLI args then dispatches window creation to the Swing EDT via `SwingUtilities.invokeLater`. The JVM stays alive through the EDT (non-daemon thread); `JFrame.EXIT_ON_CLOSE` handles shutdown.
+`Main.java` follows a constructor-init / `run(args)` lifecycle. The constructor loads `config.properties` and the `ResourceBundle`, resolving the locale from `app.language.default`. `run()` prints CLI args, builds the entities, then enters a classic GLFW game loop on the main thread (`GLWindow` + OpenGL ES 3.0 context, vsync-paced): poll events → delta-time update → draw all behaviors via `RenderContext` → swap. ESC opens a GL-rendered quit-confirm overlay (Enter = quit, ESC = cancel); closing the window ends the loop and the JVM exits normally. Shaders live in `src/main/resources/shaders/` (one `.vert`/`.frag` pair per pass: star, cloud, quad, text, blit).
 
 ## Technical documentation
 
@@ -48,6 +56,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `09-thrust-engine.md` | Engine power (thrust) throttle, speed/power HUD |
 | `10-procedural-generation.md` | Seed-based procedural star generation, star name generator, approach name labels |
 | `11-magellanic-clouds.md` | Magellanic-cloud background layer, shared CameraState |
+| `12-opengl-pipeline.md` | OpenGL ES 3.0 pipeline (LWJGL/GLFW/EGL), shaders, VBOs, FBO layer cache |
 
 ### Documentation rules
 
