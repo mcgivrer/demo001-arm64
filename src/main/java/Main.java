@@ -108,6 +108,15 @@ public class Main {
         while (!window.shouldClose()) {
             window.pollEvents();
 
+            // Window resize / fullscreen toggle (F or F11): propagate the new
+            // framebuffer size to the viewport, the HUD helpers and every layer
+            if (window.consumeResized()) {
+                int w = window.width(), h = window.height();
+                glViewport(0, 0, w, h);
+                ctx.resize(w, h);
+                for (Entity entity : entities) entity.resize(w, h);
+            }
+
             long now = System.nanoTime();
             double dt = (now - lastTime) / 1_000_000_000.0;
             lastTime = now;
@@ -130,12 +139,12 @@ public class Main {
         String hint    = getMessage("app.exit.confirm.hint",    "Enter = yes  /  Esc = no");
 
         // Dim the scene
-        ctx.quads.fill(0, 0, windowWidth, windowHeight, 0f, 0f, 0f, 0.55f);
+        ctx.quads.fill(0, 0, ctx.width, ctx.height, 0f, 0f, 0f, 0.55f);
 
         int boxW = Math.max(300, ctx.text.stringWidth(message, 11f, false) + 60);
         int boxH = 110;
-        int x = (windowWidth  - boxW) / 2;
-        int y = (windowHeight - boxH) / 2;
+        int x = (ctx.width  - boxW) / 2;
+        int y = (ctx.height - boxH) / 2;
 
         ctx.quads.fillRounded(x, y, boxW, boxH, 12,
             15 / 255f, 18 / 255f, 26 / 255f, 0.92f,
@@ -150,7 +159,7 @@ public class Main {
                               float sizePt, boolean bold,
                               float r, float g, float b, float a) {
         int w = ctx.text.stringWidth(text, sizePt, bold);
-        ctx.text.draw(text, (windowWidth - w) / 2f, baselineY, sizePt, bold, r, g, b, a);
+        ctx.text.draw(text, (ctx.width - w) / 2f, baselineY, sizePt, bold, r, g, b, a);
     }
 
     private void dispose() {

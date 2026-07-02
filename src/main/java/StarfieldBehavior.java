@@ -45,6 +45,7 @@ public class StarfieldBehavior implements Behavior {
         {"SPACE",                  "Frein"},
         {"Clic + glisser",         "Joystick"},
         {"CTRL / SHIFT",           "Thrust +/-"},
+        {"F / F11",                "Plein écran"},
         {"ESCAPE",                 "Quitter"},
         {"H",                      "Afficher/masquer l'aide"},
     };
@@ -65,8 +66,8 @@ public class StarfieldBehavior implements Behavior {
     private int    fpsFrames;
     private int    fps;
 
-    private final int       cx, cy;
-    private final double    projScaleX, projScaleY;
+    private int             cx, cy;       // projection centre — follows the viewport size
+    private double          projScaleX, projScaleY;
     private final long      seed;         // master seed — the whole starfield derives from it
     private long            spawnCounter; // total stars generated; sub-seed index
     private final CameraState camera;     // shared frame rotation (yaw/pitch/roll)
@@ -122,6 +123,14 @@ public class StarfieldBehavior implements Behavior {
         glEnableVertexAttribArray(3);                                  // colour
         glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 20);
         glBindVertexArray(0);
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        cx = width  / 2;
+        cy = height / 2;
+        projScaleX = width  * 0.45;
+        projScaleY = height * 0.45;
     }
 
     /**

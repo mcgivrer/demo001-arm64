@@ -119,12 +119,15 @@ public class NebulaFieldBehavior implements Behavior {
 
     private final CameraState camera;
     private final long   seed;
-    private final int    cx, cy;
-    private final double projScaleX, projScaleY;
+    private int    viewW, viewH;              // viewport size — follows resizes
+    private int    cx, cy;                    // projection centre
+    private double projScaleX, projScaleY;
 
     public NebulaFieldBehavior(int width, int height, CameraState camera, long seed) {
         this.camera = camera;
         this.seed   = seed;
+        viewW = width;
+        viewH = height;
         cx = width  / 2;
         cy = height / 2;
         projScaleX = width  * 0.45;
@@ -176,8 +179,8 @@ public class NebulaFieldBehavior implements Behavior {
         noiseTexture = createNoiseTexture(StarfieldBehavior.subSeed(seed, NOISE_SUBSEED_INDEX));
 
         // Half-resolution offscreen layer + quad for compositing
-        fboWidth  = Math.max(1, cx * 2 / FBO_SCALE);
-        fboHeight = Math.max(1, cy * 2 / FBO_SCALE);
+        fboWidth  = Math.max(1, viewW / FBO_SCALE);
+        fboHeight = Math.max(1, viewH / FBO_SCALE);
         fboTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, fboTexture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -204,6 +207,25 @@ public class NebulaFieldBehavior implements Behavior {
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
         glBindVertexArray(0);
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        viewW = width;
+        viewH = height;
+        cx = width  / 2;
+        cy = height / 2;
+        projScaleX = width  * 0.45;
+        projScaleY = height * 0.45;
+
+        // Re-allocate the half-resolution layer storage at the new size and
+        // force a re-render on the next draw
+        fboWidth  = Math.max(1, width  / FBO_SCALE);
+        fboHeight = Math.max(1, height / FBO_SCALE);
+        glBindTexture(GL_TEXTURE_2D, fboTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fboWidth, fboHeight, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, (ByteBuffer) null);
+        cacheValid = false;
     }
 
     // --- Procedural generation -------------------------------------------
@@ -481,7 +503,7 @@ public class NebulaFieldBehavior implements Behavior {
     public void draw(Entity entity, RenderContext ctx) {
         // Fill the instance data (alpha baked with the zone fade) and compute
         // the exact screen bounding box of the visible puffs in the same pass
-        int panelW = cx * 2, panelH = cy * 2;
+        int panelW = viewW, panelH = viewH;
         int bbMinX = panelW, bbMinY = panelH, bbMaxX = 0, bbMaxY = 0;
 
         for (int k = 0; k < ZONE_COUNT; k++) {

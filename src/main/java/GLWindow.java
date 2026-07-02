@@ -10,13 +10,25 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  * GamePanel: the keyboard/mouse callbacks feed the same {@link InputState}
  * the behaviors already consume, and ESC drives a GL-rendered quit-confirm
  * overlay instead of a JOptionPane.
+ *
+ * <p>The window is resizable and F / F11 toggles borderless fullscreen (the
+ * monitor's current video mode). Size changes are reported through the
+ * framebuffer-size callback: the render loop polls {@link #consumeResized()}
+ * and propagates the new dimensions to the render context and behaviors.
  */
 public class GLWindow {
 
     private final long handle;
-    private final int width, height;
     private final InputState input;
     private boolean confirmQuit;
+
+    // Current framebuffer size, kept in sync by the GLFW callback
+    private int width, height;
+    private boolean resized;
+
+    // Windowed-mode geometry, restored when leaving fullscreen
+    private boolean fullscreen;
+    private int windowedX, windowedY, windowedW, windowedH;
 
     public GLWindow(int width, int height, String title, InputState input) {
         this.width  = width;
@@ -27,7 +39,7 @@ public class GLWindow {
         if (!glfwInit()) throw new IllegalStateException("GLFW init failed");
 
         glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);   // projection scales are fixed
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
@@ -46,11 +58,44 @@ public class GLWindow {
         glfwSetKeyCallback(handle, (w, key, scancode, action, mods) -> onKey(key, action));
         glfwSetMouseButtonCallback(handle, (w, button, action, mods) -> onMouseButton(button, action));
         glfwSetCursorPosCallback(handle, (w, x, y) -> onMouseMove(x, y));
+        glfwSetFramebufferSizeCallback(handle, (w, fbWidth, fbHeight) -> {
+            if (fbWidth > 0 && fbHeight > 0) {   // 0×0 while minimised
+                this.width  = fbWidth;
+                this.height = fbHeight;
+                resized     = true;
+            }
+        });
 
         glfwMakeContextCurrent(handle);
         GLES.createCapabilities();
         glfwSwapInterval(1);   // vsync — paces the loop at the display rate
         glfwShowWindow(handle);
+    }
+
+    /**
+     * Borderless fullscreen toggle: switches to the monitor's current video
+     * mode (no mode change, no decorations), and restores the previous
+     * windowed geometry on the way back. The framebuffer-size callback fires
+     * on both transitions, so the render loop resizes automatically.
+     */
+    private void toggleFullscreen() {
+        if (!fullscreen) {
+            int[] x = new int[1], y = new int[1], w = new int[1], h = new int[1];
+            glfwGetWindowPos(handle, x, y);
+            glfwGetWindowSize(handle, w, h);
+            windowedX = x[0]; windowedY = y[0];
+            windowedW = w[0]; windowedH = h[0];
+
+            long monitor = glfwGetPrimaryMonitor();
+            var mode = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(handle, monitor, 0, 0,
+                mode.width(), mode.height(), mode.refreshRate());
+        } else {
+            glfwSetWindowMonitor(handle, NULL, windowedX, windowedY,
+                windowedW, windowedH, 0);
+        }
+        fullscreen = !fullscreen;
+        glfwSwapInterval(1);   // vsync can reset across a monitor switch
     }
 
     // --- Input callbacks (same mapping as the former Swing GamePanel) ------
@@ -72,6 +117,7 @@ public class GLWindow {
         }
 
         switch (key) {
+            case GLFW_KEY_F, GLFW_KEY_F11           -> { if (down) toggleFullscreen(); }
             case GLFW_KEY_LEFT, GLFW_KEY_A          -> input.yawLeft    = down;
             case GLFW_KEY_RIGHT, GLFW_KEY_D         -> input.yawRight   = down;
             case GLFW_KEY_UP, GLFW_KEY_W            -> input.pitchUp    = down;
@@ -116,6 +162,16 @@ public class GLWindow {
     public boolean isConfirmQuit() { return confirmQuit; }
     public void pollEvents()       { glfwPollEvents(); }
     public void swapBuffers()      { glfwSwapBuffers(handle); }
+
+    public int width()  { return width; }
+    public int height() { return height; }
+
+    /** True once after each size change; reading it clears the flag. */
+    public boolean consumeResized() {
+        boolean r = resized;
+        resized = false;
+        return r;
+    }
 
     public void destroy() {
         glfwDestroyWindow(handle);

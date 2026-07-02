@@ -1,0 +1,1 @@
+claude --resume "volumetric-nebula-3d-replacement"

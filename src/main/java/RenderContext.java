@@ -5,7 +5,7 @@
  */
 public class RenderContext {
 
-    public final int width, height;
+    public int width, height;
 
     public final ShaderProgram starShader;
     public final ShaderProgram nebulaShader;
@@ -28,5 +28,13 @@ public class RenderContext {
 
         quads = new QuadRenderer(quadShader, width, height);
         text  = new TextRenderer(textShader, width, height);
+    }
+
+    /** Propagates a viewport size change to the pixel-space HUD helpers. */
+    public void resize(int width, int height) {
+        this.width  = width;
+        this.height = height;
+        quads.resize(width, height);
+        text.resize(width, height);
     }
 }

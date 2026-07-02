@@ -11,7 +11,7 @@ public class QuadRenderer {
 
     private final ShaderProgram shader;
     private final int vao;
-    private final float viewportW, viewportH;
+    private float viewportW, viewportH;
 
     public QuadRenderer(ShaderProgram shader, int viewportW, int viewportH) {
         this.shader    = shader;
@@ -28,6 +28,11 @@ public class QuadRenderer {
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
         glBindVertexArray(0);
+    }
+
+    public void resize(int viewportW, int viewportH) {
+        this.viewportW = viewportW;
+        this.viewportH = viewportH;
     }
 
     /** Plain filled rectangle (sharp corners). */

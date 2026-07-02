@@ -27,7 +27,7 @@ public class TextRenderer {
 
     private final ShaderProgram shader;
     private final int vao;
-    private final float viewportW, viewportH;
+    private float viewportW, viewportH;
     private final BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 
     private final Map<String, CachedText> cache =
@@ -56,6 +56,11 @@ public class TextRenderer {
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
         glBindVertexArray(0);
+    }
+
+    public void resize(int viewportW, int viewportH) {
+        this.viewportW = viewportW;
+        this.viewportH = viewportH;
     }
 
     private Font font(float sizePt, boolean bold) {

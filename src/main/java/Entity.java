@@ -18,6 +18,12 @@ public class Entity {
         for (Behavior b : behaviors) b.init(ctx);
     }
 
+    public void resize(int width, int height) {
+        this.width  = width;
+        this.height = height;
+        for (Behavior b : behaviors) b.resize(width, height);
+    }
+
     public void update(double dt) {
         for (Behavior b : behaviors) b.update(this, dt);
     }
