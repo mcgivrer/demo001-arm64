@@ -74,9 +74,10 @@ d'une exécution à l'autre.
 
 > Le bruit brownien de la dérive caméra vit dans `CameraState` (`driftRng`, semé
 > avec le seed maître — chapitre 5). Sa consommation dépend du nombre de frames,
-> il ne doit donc jamais alimenter la génération. Les nuages d'arrière-plan
-> utilisent l'indice de sub-seed **négatif** `-1` (chapitre 11), qui ne peut
-> jamais entrer en collision avec `spawnCounter` (toujours ≥ 0).
+> il ne doit donc jamais alimenter la génération. Les nébuleuses d'arrière-plan
+> utilisent des indices de sub-seed **négatifs** — `-1` pour la texture de bruit,
+> `-2, -3, …` pour les zones (chapitre 11) — qui ne peuvent jamais entrer en
+> collision avec `spawnCounter` (toujours ≥ 0).
 
 ```mermaid
 flowchart LR

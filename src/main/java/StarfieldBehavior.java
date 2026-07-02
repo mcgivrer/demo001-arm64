@@ -20,11 +20,6 @@ public class StarfieldBehavior implements Behavior {
     private static final int    NAME_PAD_X       = 4;    // label horizontal padding (px)
     private static final int    NAME_PAD_Y       = 2;    // label vertical padding (px)
 
-    private static final double THRUST_RATE     = 0.45; // engine power change (1/s) while CTRL/SHIFT held
-    private static final double MIN_THRUST      = 0.0;
-    private static final double MAX_THRUST      = 1.0;
-    private static final double CRUISE_THRUST   = 0.5;  // speed reference — matches the original fixed TRAVEL_SPEED
-    private static final double INITIAL_THRUST  = 0.15; // gentle start, leaves time to read star names
     private static final double MAX_SPEED_PARSEC = 70.0; // fictional top speed, displayed at full thrust
 
     private static final int    GAUGE_X      = 20;
@@ -64,9 +59,6 @@ public class StarfieldBehavior implements Behavior {
     // GL resources: one dynamic interleaved VBO, re-uploaded every frame
     private int vao, vbo;
     private final float[] starData = new float[STAR_COUNT * FLOATS_PER_STAR];
-
-    // Engine power throttle, 0 (idle) .. 1 (full thrust)
-    private double enginePower = INITIAL_THRUST;
 
     // FPS counter — frames accumulated over FPS_PERIOD, then averaged
     private double fpsTimer;
@@ -174,10 +166,6 @@ public class StarfieldBehavior implements Behavior {
 
     @Override
     public void update(Entity entity, double dt) {
-        if (input.thrustUp)   enginePower += THRUST_RATE * dt;
-        if (input.thrustDown) enginePower -= THRUST_RATE * dt;
-        enginePower = Math.clamp(enginePower, MIN_THRUST, MAX_THRUST);
-
         fpsTimer += dt;
         fpsFrames++;
         if (fpsTimer >= FPS_PERIOD) {
@@ -186,7 +174,7 @@ public class StarfieldBehavior implements Behavior {
             fpsFrames = 0;
         }
 
-        // Frame rotation computed once by CameraState (shared with the cloud layer)
+        // Frame rotation computed once by CameraState (shared with the nebula layer)
         double cosY = camera.cosYaw,   sinY = camera.sinYaw;
         double cosP = camera.cosPitch, sinP = camera.sinPitch;
         double cosR = camera.cosRoll,  sinR = camera.sinRoll;
@@ -211,8 +199,8 @@ public class StarfieldBehavior implements Behavior {
 
             sx[i] = x; sy[i] = y;
             // Forward travel: speed ∝ 1/z → slow far away, fast when close (parallax + warp)
-            // Scaled by engine thrust: enginePower=0 → stopped, =CRUISE_THRUST → original speed, =1 → 2×
-            z -= TRAVEL_SPEED * travelSpeed[i] * (enginePower / CRUISE_THRUST) / z * dt;
+            // Scaled by the shared engine thrust integrated by CameraState
+            z -= TRAVEL_SPEED * travelSpeed[i] * camera.travelFactor() / z * dt;
             sz[i] = z;
 
             // Star passed in front of (or too close to) viewer → respawn at far depth
@@ -308,13 +296,13 @@ public class StarfieldBehavior implements Behavior {
             1f, 1f, 1f, 110 / 255f);
 
         // Power fill, bottom-up
-        int fillHeight = (int) Math.round(GAUGE_HEIGHT * enginePower);
-        Color c = thrustColor(enginePower);
+        int fillHeight = (int) Math.round(GAUGE_HEIGHT * camera.enginePower);
+        Color c = thrustColor(camera.enginePower);
         ctx.quads.fill(GAUGE_X + 1, gaugeBottom - fillHeight, GAUGE_WIDTH - 1, fillHeight,
             c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f, 1f);
 
         // Speed readout, fictional but proportional to engine power
-        double speedParsecPerSec = enginePower * MAX_SPEED_PARSEC;
+        double speedParsecPerSec = camera.enginePower * MAX_SPEED_PARSEC;
         ctx.text.draw(String.format("%.2f pc/s", speedParsecPerSec),
             GAUGE_X + GAUGE_WIDTH + 10, gaugeBottom, 12f, false, 1f, 1f, 1f, 1f);
     }

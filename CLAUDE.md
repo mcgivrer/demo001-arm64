@@ -35,7 +35,7 @@ no GPU driver), see `src/docs/12-opengl-pipeline.md`.
 
 ## Application entry point
 
-`Main.java` follows a constructor-init / `run(args)` lifecycle. The constructor loads `config.properties` and the `ResourceBundle`, resolving the locale from `app.language.default`. `run()` prints CLI args, builds the entities, then enters a classic GLFW game loop on the main thread (`GLWindow` + OpenGL ES 3.0 context, vsync-paced): poll events → delta-time update → draw all behaviors via `RenderContext` → swap. ESC opens a GL-rendered quit-confirm overlay (Enter = quit, ESC = cancel); closing the window ends the loop and the JVM exits normally. Shaders live in `src/main/resources/shaders/` (one `.vert`/`.frag` pair per pass: star, cloud, quad, text, blit).
+`Main.java` follows a constructor-init / `run(args)` lifecycle. The constructor loads `config.properties` and the `ResourceBundle`, resolving the locale from `app.language.default`. `run()` prints CLI args, builds the entities, then enters a classic GLFW game loop on the main thread (`GLWindow` + OpenGL ES 3.0 context, vsync-paced): poll events → delta-time update → draw all behaviors via `RenderContext` → swap. ESC opens a GL-rendered quit-confirm overlay (Enter = quit, ESC = cancel); closing the window ends the loop and the JVM exits normally. Shaders live in `src/main/resources/shaders/` (one `.vert`/`.frag` pair per pass: star, nebula, quad, text, blit).
 
 ## Technical documentation
 
@@ -55,7 +55,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `08-input-controls.md` | InputState, GamePanel listeners, keyboard/mouse camera control |
 | `09-thrust-engine.md` | Engine power (thrust) throttle, speed/power HUD |
 | `10-procedural-generation.md` | Seed-based procedural star generation, star name generator, approach name labels |
-| `11-magellanic-clouds.md` | Magellanic-cloud background layer, shared CameraState |
+| `11-nebula-field.md` | Volumetric nebula zones (3D positions, travel/respawn, fBm noise, hybrid FBO cache) |
 | `12-opengl-pipeline.md` | OpenGL ES 3.0 pipeline (LWJGL/GLFW/EGL), shaders, VBOs, FBO layer cache |
 
 ### Documentation rules

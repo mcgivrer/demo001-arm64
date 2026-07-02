@@ -73,8 +73,8 @@ $$\mathbf{p}' = R_Z(\alpha_R) \cdot R_X(\alpha_P) \cdot R_Y(\alpha_Y) \cdot \mat
 ## Contrôle des vitesses angulaires — mode hybride
 
 Les vitesses angulaires $\omega_Y$, $\omega_P$, $\omega_R$ (en rad/s) vivent dans la
-classe **`CameraState`**, partagée entre le champ d'étoiles et les nuages de fond
-(voir [chapitre 11](11-magellanic-clouds.md)). `ParticleSystem.update()` intègre la
+classe **`CameraState`**, partagée entre le champ d'étoiles et les nébuleuses de fond
+(voir [chapitre 11](11-nebula-field.md)). `ParticleSystem.update()` intègre la
 caméra **une seule fois par frame**, avant tous les `Behavior`, et expose la rotation
 de la frame sous forme de paires cos/sin précalculées (`cosYaw`, `sinYaw`, …) que
 chaque couche consomme pour tourner en parfaite synchronisation.
@@ -177,8 +177,8 @@ double tz = -x * sinY + z * cosY;
 x = tx; z = tz;
 // + Pitch, Roll de manière similaire...
 
-// Forward travel (étoiles seulement — les nuages de fond sont à l'infini)
-z -= TRAVEL_SPEED * travelSpeed[i] / z * dt;
+// Forward travel — même schéma pour les nébuleuses (Δz rigide par zone, ch. 11)
+z -= TRAVEL_SPEED * travelSpeed[i] * camera.travelFactor() / z * dt;
 ```
 
 ---

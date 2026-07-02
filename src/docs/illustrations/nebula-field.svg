@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 470" width="800" height="470" font-family="monospace, sans-serif">
+  <rect width="800" height="470" fill="#0d1117"/>
+  <text x="400" y="28" fill="#e6edf3" font-size="15" font-weight="bold" text-anchor="middle">Nébuleuses volumétriques — anatomie et cycle de vie</text>
+
+  <!-- ===== Left: zone anatomy ===== -->
+  <rect x="30" y="50" width="360" height="270" rx="8" fill="#010409" stroke="#30363d"/>
+  <text x="210" y="70" fill="#8b949e" font-size="11" text-anchor="middle">Une zone : ellipsoïde anisotrope de 25 puffs</text>
+
+  <!-- ellipsoid outline -->
+  <ellipse cx="200" cy="185" rx="140" ry="80" fill="none" stroke="#3fb950" stroke-width="1" stroke-dasharray="6,4" transform="rotate(-18,200,185)"/>
+
+  <!-- diffuse puffs (H-alpha palette: magenta core → deep red rim) -->
+  <circle cx="150" cy="170" r="34" fill="rgba(200,40,70,0.20)"/>
+  <circle cx="150" cy="170" r="18" fill="rgba(255,80,140,0.35)"/>
+  <circle cx="230" cy="200" r="42" fill="rgba(200,40,70,0.18)"/>
+  <circle cx="230" cy="200" r="22" fill="rgba(255,80,140,0.30)"/>
+  <circle cx="195" cy="150" r="28" fill="rgba(200,40,70,0.22)"/>
+  <circle cx="195" cy="150" r="14" fill="rgba(255,80,140,0.38)"/>
+  <circle cx="275" cy="165" r="30" fill="rgba(200,40,70,0.16)"/>
+  <circle cx="275" cy="165" r="15" fill="rgba(255,80,140,0.28)"/>
+  <circle cx="120" cy="210" r="26" fill="rgba(200,40,70,0.16)"/>
+  <circle cx="170" cy="225" r="30" fill="rgba(200,40,70,0.18)"/>
+  <circle cx="170" cy="225" r="16" fill="rgba(255,80,140,0.26)"/>
+  <!-- bright cores (whitened) -->
+  <circle cx="205" cy="185" r="10" fill="rgba(255,180,210,0.75)"/>
+  <circle cx="205" cy="185" r="5"  fill="rgba(255,225,238,0.95)"/>
+  <circle cx="245" cy="155" r="7"  fill="rgba(255,190,215,0.65)"/>
+
+  <!-- basis vectors -->
+  <line x1="200" y1="185" x2="320" y2="150" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrb)"/>
+  <text x="326" y="150" fill="#58a6ff" font-size="11">u</text>
+  <line x1="200" y1="185" x2="230" y2="110" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arrb)"/>
+  <text x="234" y="108" fill="#58a6ff" font-size="11">v · f_v</text>
+  <line x1="200" y1="185" x2="130" y2="255" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arrp)"/>
+  <text x="98" y="268" fill="#d2a8ff" font-size="11">w · f_w (profondeur)</text>
+
+  <text x="210" y="300" fill="#6e7681" font-size="9" text-anchor="middle">cœurs brillants ×3 (mélangés 40% vers le blanc) — sous-grumeaux gaussiens ×2-3</text>
+
+  <!-- ===== Right: palette ===== -->
+  <rect x="410" y="50" width="360" height="270" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="590" y="70" fill="#8b949e" font-size="11" text-anchor="middle">Palette : 6 duos cœur → bord</text>
+
+  <defs>
+    <linearGradient id="pal0" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="rgb(255,80,140)"/><stop offset="1" stop-color="rgb(200,40,70)"/>
+    </linearGradient>
+    <linearGradient id="pal1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="rgb(80,235,220)"/><stop offset="1" stop-color="rgb(30,140,180)"/>
+    </linearGradient>
+    <linearGradient id="pal2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="rgb(170,200,255)"/><stop offset="1" stop-color="rgb(60,100,230)"/>
+    </linearGradient>
+    <linearGradient id="pal3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="rgb(255,200,90)"/><stop offset="1" stop-color="rgb(240,120,50)"/>
+    </linearGradient>
+    <linearGradient id="pal4" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="rgb(200,130,255)"/><stop offset="1" stop-color="rgb(110,60,220)"/>
+    </linearGradient>
+    <linearGradient id="pal5" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="rgb(140,255,150)"/><stop offset="1" stop-color="rgb(40,180,120)"/>
+    </linearGradient>
+    <marker id="arrb" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#58a6ff"/>
+    </marker>
+    <marker id="arrp" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#d2a8ff"/>
+    </marker>
+    <marker id="arrw" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L7,3.5 z" fill="#e6edf3"/>
+    </marker>
+  </defs>
+
+  <g font-size="11" fill="#cdd9e5">
+    <rect x="430" y="86"  width="150" height="18" rx="4" fill="url(#pal0)"/><text x="592" y="99">H-alpha</text>
+    <rect x="430" y="122" width="150" height="18" rx="4" fill="url(#pal1)"/><text x="592" y="135">O-III</text>
+    <rect x="430" y="158" width="150" height="18" rx="4" fill="url(#pal2)"/><text x="592" y="171">Réflexion</text>
+    <rect x="430" y="194" width="150" height="18" rx="4" fill="url(#pal3)"/><text x="592" y="207">S-II</text>
+    <rect x="430" y="230" width="150" height="18" rx="4" fill="url(#pal4)"/><text x="592" y="243">Violette</text>
+    <rect x="430" y="266" width="150" height="18" rx="4" fill="url(#pal5)"/><text x="592" y="279">Verte</text>
+  </g>
+  <text x="590" y="305" fill="#6e7681" font-size="9" text-anchor="middle">zone k → palette k au départ ; nouvelle palette au respawn</text>
+
+  <!-- ===== Bottom: fade windows along z ===== -->
+  <rect x="30" y="340" width="740" height="110" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="400" y="360" fill="#8b949e" font-size="11" text-anchor="middle">Fenêtres de fondu le long de z — respawn sans pop</text>
+
+  <!-- z axis -->
+  <line x1="70" y1="415" x2="740" y2="415" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrw)"/>
+  <text x="748" y="419" fill="#8b949e" font-size="11">z</text>
+
+  <!-- fade curve: 0 until 0.35, up to 1 at 0.75, flat, down from 1.55 to 0 at 1.95 -->
+  <!-- x mapping: z=0 → x=70 ; z=2.2 → x=730 ; scale = 300 px/unit -->
+  <path d="M 70,413 L 175,413 C 205,413 215,378 245,378 L 535,378 C 565,378 575,413 655,413 L 730,413"
+        fill="none" stroke="#3fb950" stroke-width="2"/>
+  <text x="80" y="374" fill="#3fb950" font-size="10">fade(z)</text>
+
+  <!-- markers -->
+  <g font-size="9" fill="#cdd9e5" text-anchor="middle">
+    <line x1="88"  y1="410" x2="88"  y2="420" stroke="#f85149"/><text x="88"  y="432" fill="#f85149">MIN_Z 0.10</text>
+    <line x1="175" y1="410" x2="175" y2="420" stroke="#cdd9e5"/><text x="175" y="432">0.35 respawn</text>
+    <line x1="295" y1="410" x2="295" y2="420" stroke="#cdd9e5"/><text x="295" y="432">0.75</text>
+    <line x1="535" y1="410" x2="535" y2="420" stroke="#cdd9e5"/><text x="535" y="432">1.55</text>
+    <line x1="655" y1="410" x2="655" y2="420" stroke="#cdd9e5"/><text x="655" y="432">1.95</text>
+    <rect x="655" y="395" width="60" height="12" fill="rgba(88,166,255,0.25)"/><text x="686" y="391" fill="#58a6ff">spawn</text>
+  </g>
+
+  <!-- travel arrow -->
+  <line x1="500" y1="450" x2="300" y2="450" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arrp)"/>
+  <text x="404" y="446" fill="#d2a8ff" font-size="10" text-anchor="middle">travel : Δz ∝ poussée / z</text>
+</svg>

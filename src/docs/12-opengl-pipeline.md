@@ -49,7 +49,7 @@ sequenceDiagram
         M->>W: pollEvents() → InputState
         M->>E: update(dt)
         M->>M: glClear
-        M->>E: draw(ctx) — nuages, étoiles, HUD
+        M->>E: draw(ctx) — nébuleuses, étoiles, HUD
         M->>M: overlay ESC éventuel
         M->>W: swapBuffers()
     end
@@ -62,15 +62,15 @@ sequenceDiagram
 | Fichiers | Passe | Technique |
 |---|---|---|
 | `star.vert` / `star.frag` | étoiles | `GL_POINTS` : projection, `gl_PointSize`, alpha 1/z² au vertex ; profil radial cœur+halo via `gl_PointCoord` |
-| `cloud.vert` / `cloud.frag` | nuages | quads **instanciés** (`glDrawArraysInstanced`), rotation par uniform `mat3`, sortie en alpha prémultiplié |
-| `blit.vert` / `blit.frag` | composition nuages | quad texturé sur le rectangle englobant du calque |
+| `nebula.vert` / `nebula.frag` | nébuleuses | quads **instanciés** (`glDrawArraysInstanced`), positions 3D finies tournées sur CPU, profil radial × **texture de bruit fBm** (1 fetch/fragment), sortie en alpha prémultiplié |
+| `blit.vert` / `blit.frag` | composition nébuleuses | quad texturé sur le rectangle englobant du calque |
 | `quad.vert` / `quad.frag` | HUD | rectangle arrondi par **SDF**, remplissage + bordure |
 | `text.vert` / `text.frag` | texte | quad texturé, teinte × couverture des glyphes |
 
 Tous en `#version 300 es`, `precision highp float`, chargés et liés par
 `ShaderProgram` depuis le classpath (`/shaders/<nom>.vert|.frag`).
 
-### Projection en clip space (star.vert, cloud.vert)
+### Projection en clip space (star.vert, nebula.vert)
 
 La projection Java2D `px = cx + x/z·s` devient, en espace de clip (y inversé
 car OpenGL pointe vers le haut) :
@@ -138,7 +138,7 @@ class GLWindow {
 }
 
 class RenderContext {
-    + starShader, cloudShader, quadShader, textShader, blitShader
+    + starShader, nebulaShader, quadShader, textShader, blitShader
     + quads : QuadRenderer
     + text : TextRenderer
 }
@@ -177,28 +177,32 @@ Behavior ..> RenderContext : draw(ctx)
 - **Étoiles** : VBO dynamique interleavé (x, y, z, taille, brillance, r, g, b —
   16 Ko), ré-uploadé chaque frame car les positions évoluent (travel + respawn)
   sur CPU. Dessin : un seul `glDrawArrays(GL_POINTS, 0, 500)`.
-- **Nuages** : VBO **statique** — les 230 directions unitaires ne changent
-  jamais ; la rotation caméra arrive par l'uniform `mat3` cumulé de
-  `CameraState` (voir [chapitre 11](11-magellanic-clouds.md) pour le FBO cache).
+- **Nébuleuses** : VBO **dynamique** de 150 instances × 15 floats (~9 Ko) — les
+  positions 3D tournent et avancent comme les étoiles ; ré-uploadé uniquement
+  quand le cache FBO se re-rend (voir [chapitre 11](11-nebula-field.md)). Une
+  texture RGBA 128×128 de bruit fBm (4 champs, 3 octaves, seedée) module le
+  profil des puffs.
 - **Texte** : AWT (headless) rasterise chaque chaîne une fois en glyphes blancs ;
   la texture est mise en cache (LRU 64 entrées) et teintée par uniform.
 
 ---
 
-## Performances mesurées (llvmpipe, 800×600, scène pire-cas)
+## Performances mesurées (llvmpipe, 800×600)
 
 | Poste | Coût |
 |---|---|
 | glClear | ~0,5 ms |
-| Nuages (FBO cache + blit bbox) | ~4 ms |
+| Nébuleuses (FBO cache hybride + blit bbox) | ~3-5 ms selon le cache |
 | Étoiles + étiquettes + HUD | ~5,8 ms |
-| **Frame complète** | **~8-10 ms (≈ 100 FPS max)** |
+| **Frame complète** | **66-75 FPS mesurés en dérive brownienne** |
 
 Les optimisations décisives sous rasteriseur logiciel : composition du calque
-nuages **hors blending** (écriture directe sur fond noir fraîchement effacé),
-blit restreint au **rectangle englobant** calculé sur CPU à partir des centres
-des composants, et **cache du FBO** entre frames (seuil de rotation 0,002 rad,
-au plus un re-rendu toutes les 4 frames).
+nébuleuses **hors blending** (écriture directe sur fond noir fraîchement
+effacé), blit restreint au **rectangle englobant exact** des puffs visibles
+(calculé sur CPU pendant le remplissage du VBO), et **cache hybride du FBO**
+entre frames — re-rendu seulement quand la rotation cumulée dépasse 0,002 rad
+**ou** que le travel cumulé atteint ~1 px d'écran, avec au moins 2 frames
+entre deux passes (voir [chapitre 11](11-nebula-field.md)).
 
 ---
 
@@ -206,4 +210,4 @@ au plus un re-rendu toutes les 4 frames).
 > - [06 — Projection perspective](06-perspective-projection.md) — formules portées en GLSL
 > - [07 — Boucle de jeu](07-game-loop.md) — boucle GLFW et vsync
 > - [08 — Contrôles](08-input-controls.md) — callbacks GLFW
-> - [11 — Nuages de Magellan](11-magellanic-clouds.md) — instancing et FBO
+> - [11 — Nébuleuses volumétriques](11-nebula-field.md) — instancing, bruit fBm et FBO

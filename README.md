@@ -1,6 +1,7 @@
 # demo001 — Starfield 3D
 
-Une animation de vol à travers un champ d'étoiles en 3D, développée en Java/Swing.
+Une animation de vol à travers un champ d'étoiles en 3D, développée en Java et
+rendue en **OpenGL ES 3.0** (LWJGL 3 / GLFW, shaders GLSL).
 
 ![Java 26](https://img.shields.io/badge/Java-26-blue) ![License MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -8,7 +9,10 @@ Une animation de vol à travers un champ d'étoiles en 3D, développée en Java/
 
 La caméra survole 500 étoiles réparties en 3D — pilotable au clavier et à la souris, ou en dérive brownienne autonome (lacet, tangage, roulis).
 Les étoiles sont colorées selon la classification spectrale de Harvard (M rouge → O bleu géant)
-avec des probabilités réalistes, une parallaxe vraie et une loi en inverse du carré pour la luminosité.
+avec des probabilités réalistes, une parallaxe vraie et une loi en inverse du carré pour la luminosité ;
+certaines portent un nom procédural affiché à l'approche.
+L'arrière-plan est peuplé de nébuleuses volumétriques colorées, positionnées en 3D
+et traversées au fil du vol.
 Un HUD affiche en temps réel la puissance des moteurs (jauge) et la vitesse de croisière (en parsecs/seconde, fictive).
 
 ![Rendu avec HUD de propulsion](src/docs/illustrations/app-render-hud.svg)
@@ -25,6 +29,8 @@ sdk env           # active la version du projet
 
 ## Build & lancement
 
+Avec le script maison (télécharge les jars LWJGL dans `lib/` au premier build) :
+
 ```bash
 ./build.sh          # compile les sources → target/classes/
 ./build.sh jar      # compile + package → target/demo001.jar
@@ -32,6 +38,18 @@ sdk env           # active la version du projet
 ./build.sh all      # compile puis lance
 ./build.sh clean    # supprime target/
 ```
+
+Ou avec Maven (jar auto-suffisant incluant les natives de la plateforme courante) :
+
+```bash
+mvn package                  # → target/demo001-1.0.0.jar (exécutable)
+mvn exec:exec                # lance le jar
+mvn package -Pinstaller      # + installeur natif (DEB/RPM, DMG/PKG, MSI/EXE)
+```
+
+> Le rendu requiert OpenGL ES 3.0 via EGL (fourni par Mesa/llvmpipe à défaut de
+> driver GPU). L'installeur natif se construit sur la plateforme cible
+> (jpackage ne cross-compile pas).
 
 ## Configuration
 
@@ -71,16 +89,25 @@ l'ensemble de ces contrôles ; la touche **H** bascule son affichage.
 
 ```
 src/main/java/
-├── Main.java               # Point d'entrée, boucle de jeu, fenêtre Swing
-├── Entity.java             # Objet de scène (position, vitesse, behaviors)
-├── Behavior.java           # Interface update/draw
-├── InputState.java         # État partagé clavier/souris (yaw/pitch/roll, thrust, ...)
-├── ParticleSystem.java     # Entity spécialisée pour les particules
-└── StarfieldBehavior.java  # Rendu et physique du champ d'étoiles, throttle, HUD
+├── Main.java                  # Point d'entrée, boucle de jeu GLFW
+├── GLWindow.java              # Fenêtre GLFW + contexte OpenGL ES 3.0, callbacks
+├── RenderContext.java         # Shaders partagés + helpers HUD (quads, texte)
+├── ShaderProgram.java         # Compilation/liaison GLSL, uniforms
+├── QuadRenderer.java          # Rectangles HUD (SDF coins arrondis)
+├── TextRenderer.java          # Texte (AWT headless → textures, cache LRU)
+├── Entity.java                # Objet de scène (position, vitesse, behaviors)
+├── Behavior.java              # Interface init/update/draw
+├── InputState.java            # État partagé clavier/souris (yaw/pitch/roll, thrust, ...)
+├── CameraState.java           # Rotation caméra + puissance moteur, partagées
+├── ParticleSystem.java        # Assemble les couches (nébuleuses + étoiles)
+├── StarfieldBehavior.java     # Rendu et physique du champ d'étoiles, HUD
+├── NebulaFieldBehavior.java   # Nébuleuses volumétriques 3D (zones colorées)
+└── StarNameGenerator.java     # Noms d'étoiles procéduraux
 
 src/main/resources/
-├── config.properties       # Taille fenêtre et langue
-└── i18n/messages*.properties
+├── config.properties          # Taille fenêtre et langue
+├── i18n/messages*.properties
+└── shaders/*.vert|.frag       # star, nebula, quad, text, blit
 ```
 
 ## License

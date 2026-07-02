@@ -123,7 +123,7 @@ n'est pas affecté par les corrections d'horloge système (NTP, etc.).
 | Cadencement | vsync (`glfwSwapInterval(1)`) | 60 Hz → ≈16,7 ms/frame |
 | Étoiles simulées | 500 | update CPU O(N), rendu en un seul draw call |
 | Opérations par étoile (update) | 6 mul + 6 add (rotations) + 1 division (travel) | Pas de matrice allouée |
-| Budget rendu mesuré (pire cas, llvmpipe) | ~8-10 ms/frame | clear ~0,5 + nuages ~4 + étoiles/HUD ~5,8 (voir ch. 12) |
+| Budget rendu mesuré (llvmpipe) | 66-75 FPS | clear ~0,5 + nébuleuses ~3-5 + étoiles/HUD ~5,8 (voir ch. 12) |
 
 ### Afficheur de FPS
 
@@ -196,7 +196,7 @@ superposition.
 Sur cette machine, le rendu OpenGL passe par **llvmpipe** (rasteriseur logiciel
 Mesa, pas de driver GPU) : chaque pixel blendé coûte ~12 ns. Le budget se gère
 donc comme sur le CPU : limiter le nombre de pixels écrits (rectangle englobant
-des nuages, cache FBO — [chapitre 11](11-magellanic-clouds.md)) et le nombre de
+des nébuleuses, cache FBO — [chapitre 11](11-nebula-field.md)) et le nombre de
 passes plein écran. Les formules et techniques restent valables telles quelles
 sur un vrai GPU, où ces coûts deviennent négligeables.
 

@@ -1,5 +1,5 @@
 /**
- * Shared GL rendering resources handed to every {@link Behavior}: the four
+ * Shared GL rendering resources handed to every {@link Behavior}: the five
  * shader programs, the HUD helpers (quads, text) and the viewport geometry.
  * Must be created after the GL context is current.
  */
@@ -8,7 +8,7 @@ public class RenderContext {
     public final int width, height;
 
     public final ShaderProgram starShader;
-    public final ShaderProgram cloudShader;
+    public final ShaderProgram nebulaShader;
     public final ShaderProgram quadShader;
     public final ShaderProgram textShader;
     public final ShaderProgram blitShader;
@@ -20,11 +20,11 @@ public class RenderContext {
         this.width  = width;
         this.height = height;
 
-        starShader  = new ShaderProgram("star");
-        cloudShader = new ShaderProgram("cloud");
-        quadShader  = new ShaderProgram("quad");
-        textShader  = new ShaderProgram("text");
-        blitShader  = new ShaderProgram("blit");
+        starShader   = new ShaderProgram("star");
+        nebulaShader = new ShaderProgram("nebula");
+        quadShader   = new ShaderProgram("quad");
+        textShader   = new ShaderProgram("text");
+        blitShader   = new ShaderProgram("blit");
 
         quads = new QuadRenderer(quadShader, width, height);
         text  = new TextRenderer(textShader, width, height);

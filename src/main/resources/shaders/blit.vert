@@ -1,6 +1,6 @@
 #version 300 es
 // Blit vertex shader — composites a sub-rectangle of an offscreen layer
-// (e.g. the half-resolution cloud FBO) onto the default framebuffer. The
+// (e.g. the half-resolution nebula FBO) onto the default framebuffer. The
 // rectangle is given in screen pixels (top-left origin); UVs address the
 // matching region of the layer texture.
 precision highp float;

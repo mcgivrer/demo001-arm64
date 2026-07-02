@@ -56,7 +56,7 @@ flowchart TD
     A([Main.initEntities]) --> B[new ParticleSystem\nwidth, height, input, seed]
     B --> C[super Entity\n0, 0, width, height]
     C --> K[new CameraState\ninput, seed]
-    K --> L[addBehavior\nMagellanicCloudsBehavior\narrière-plan]
+    K --> L[addBehavior\nNebulaFieldBehavior\narrière-plan]
     L --> D[new StarfieldBehavior\nwidth, height, input, camera, seed]
     D --> E[initStar × 500\nscatter = true\nsub-seed par étoile]
     E --> F[addBehavior\nStarfieldBehavior]
@@ -75,8 +75,8 @@ public class ParticleSystem extends Entity {
     public ParticleSystem(int width, int height, InputState input, long seed) {
         super(0, 0, width, height);
         camera = new CameraState(input, seed);
-        // Insertion order = draw order: clouds behind, starfield in front
-        addBehavior(new MagellanicCloudsBehavior(width, height, camera, seed));
+        // Insertion order = draw order: nebulae behind, starfield in front
+        addBehavior(new NebulaFieldBehavior(width, height, camera, seed));
         addBehavior(new StarfieldBehavior(width, height, input, camera, seed));
     }
 
@@ -89,14 +89,14 @@ public class ParticleSystem extends Entity {
 ```
 
 Le paramètre `seed` provient de `config.properties` (`app.stars.seed`) et pilote toute
-la génération procédurale — champ d'étoiles, noms et nuages de fond
+la génération procédurale — champ d'étoiles, noms et nébuleuses de fond
 (voir [10 — Génération procédurale](10-procedural-generation.md) et
-[11 — Nuages de Magellan](11-magellanic-clouds.md)).
+[11 — Nébuleuses volumétriques](11-nebula-field.md)).
 
 `ParticleSystem` illustre désormais pleinement le pattern : **l'ordre d'insertion des
-`Behavior` est l'ordre de dessin** (les nuages derrière, les étoiles devant), et l'état
-partagé entre couches (`CameraState`) est intégré une seule fois par frame dans
-`update()` avant la mise à jour des comportements.
+`Behavior` est l'ordre de dessin** (les nébuleuses derrière, les étoiles devant), et
+l'état partagé entre couches (`CameraState` : rotation et poussée moteur) est intégré
+une seule fois par frame dans `update()` avant la mise à jour des comportements.
 
 La position `(0, 0)` et les dimensions `(width, height)` définissent le **domaine de
 l'entité** — ici la totalité du panneau graphique. `StarfieldBehavior` lit ces valeurs
@@ -107,9 +107,9 @@ et les facteurs d'échelle `projScaleX`, `projScaleY`.
 
 ## Extension possible
 
-Ce mécanisme d'extension est déjà exploité : `MagellanicCloudsBehavior` a été ajouté
+Ce mécanisme d'extension est déjà exploité : `NebulaFieldBehavior` a été ajouté
 comme couche d'arrière-plan **sans modifier `Entity` ni `StarfieldBehavior`**
-(voir [chapitre 11](11-magellanic-clouds.md)). Tout effet supplémentaire (météores,
+(voir [chapitre 11](11-nebula-field.md)). Tout effet supplémentaire (météores,
 poussière, vaisseaux…) suit le même schéma :
 
 ```java

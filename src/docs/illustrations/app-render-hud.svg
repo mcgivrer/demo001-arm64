@@ -1,8 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" font-family="monospace, sans-serif">
-  <!-- Mockup of the actual OpenGL render (RenderContext/GLWindow): black background + starfield + thrust HUD overlay -->
+  <!-- Mockup of the actual OpenGL render (RenderContext/GLWindow): black background
+       + volumetric nebula zones + starfield + thrust HUD overlay -->
   <rect width="800" height="600" fill="#000000"/>
 
-  <!-- Scattered stars, colours sampled from the Harvard spectral classes (see ch.04) -->
+  <!-- === Nebula zones (NebulaFieldBehavior, see ch.11) — soft core→rim gradients,
+       drawn first: the layer sits behind the stars === -->
+  <defs>
+    <radialGradient id="nebGreen">
+      <stop offset="0" stop-color="rgb(140,255,150)" stop-opacity="0.32"/>
+      <stop offset="0.55" stop-color="rgb(40,180,120)" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="rgb(40,180,120)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebGold">
+      <stop offset="0" stop-color="rgb(255,200,90)" stop-opacity="0.34"/>
+      <stop offset="0.55" stop-color="rgb(240,120,50)" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="rgb(240,120,50)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebViolet">
+      <stop offset="0" stop-color="rgb(200,130,255)" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="rgb(110,60,220)" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="rgb(110,60,220)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebTeal">
+      <stop offset="0" stop-color="rgb(80,235,220)" stop-opacity="0.26"/>
+      <stop offset="0.55" stop-color="rgb(30,140,180)" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="rgb(30,140,180)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nebMagenta">
+      <stop offset="0" stop-color="rgb(255,80,140)" stop-opacity="0.24"/>
+      <stop offset="0.55" stop-color="rgb(200,40,70)" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="rgb(200,40,70)" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Green nebula — large, mid-right (overlapping puffs = patchy gas) -->
+  <ellipse cx="560" cy="200" rx="150" ry="95" fill="url(#nebGreen)" transform="rotate(-14,560,200)"/>
+  <ellipse cx="500" cy="240" rx="90" ry="60" fill="url(#nebGreen)"/>
+  <ellipse cx="630" cy="170" rx="80" ry="55" fill="url(#nebGreen)" transform="rotate(20,630,170)"/>
+  <circle cx="575" cy="205" r="6" fill="rgba(220,255,225,0.65)"/>   <!-- bright core -->
+
+  <!-- Gold/orange nebula — bottom-left -->
+  <ellipse cx="200" cy="470" rx="130" ry="75" fill="url(#nebGold)" transform="rotate(10,200,470)"/>
+  <ellipse cx="270" cy="440" rx="80" ry="50" fill="url(#nebGold)"/>
+  <circle cx="225" cy="465" r="5" fill="rgba(255,235,190,0.6)"/>    <!-- bright core -->
+
+  <!-- Violet nebula — centre, farther (smaller, fainter) -->
+  <ellipse cx="420" cy="330" rx="85" ry="50" fill="url(#nebViolet)" transform="rotate(-25,420,330)"/>
+  <ellipse cx="460" cy="355" rx="55" ry="35" fill="url(#nebViolet)"/>
+
+  <!-- Teal nebula — top-left, distant (fading in from the far shell) -->
+  <ellipse cx="130" cy="120" rx="90" ry="55" fill="url(#nebTeal)" transform="rotate(18,130,120)"/>
+
+  <!-- Magenta nebula — right edge, partially off-screen -->
+  <ellipse cx="770" cy="400" rx="90" ry="65" fill="url(#nebMagenta)"/>
+
+  <!-- === Scattered stars, colours sampled from the Harvard spectral classes (see ch.04) === -->
   <circle cx="120" cy="90"  r="1.1" fill="#ff8c50"/>
   <circle cx="180" cy="260" r="1.4" fill="#ffb96e"/>
   <circle cx="260" cy="430" r="1.0" fill="#ff8c50"/>
@@ -57,5 +109,5 @@
 
   <!-- caption -->
   <rect x="0" y="566" width="800" height="34" fill="#0d1117"/>
-  <text x="400" y="588" fill="#8b949e" font-size="12" text-anchor="middle">Rendu GL (RenderContext) — champ d'étoiles + HUD de propulsion + grille d'aide des contrôles (touche H)</text>
+  <text x="400" y="588" fill="#8b949e" font-size="12" text-anchor="middle">Rendu GL (RenderContext) — nébuleuses volumétriques + champ d'étoiles + HUD de propulsion + grille d'aide (touche H)</text>
 </svg>

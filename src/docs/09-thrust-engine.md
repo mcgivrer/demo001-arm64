@@ -17,8 +17,11 @@ logique physique simple et cohérente).
 ## Modèle de puissance moteur (throttle)
 
 La puissance moteur `enginePower` est un scalaire normalisé dans `[0, 1]`, stocké
-dans `StarfieldBehavior` et mis à jour à chaque frame dans `update()`, **avant** le
-traitement des rotations (axe de contrôle indépendant du yaw/pitch/roll) :
+dans **`CameraState`** — au même titre que la rotation, c'est un état de mouvement
+**partagé par toutes les couches** : le champ d'étoiles et les nébuleuses
+([chapitre 11](11-nebula-field.md)) avancent au même régime. Il est intégré une
+fois par frame dans `CameraState.update()` (appelé par `ParticleSystem` avant tous
+les behaviors) :
 
 - **CTRL** maintenu → `enginePower` augmente.
 - **SHIFT** maintenu → `enginePower` diminue.
@@ -74,7 +77,8 @@ pour que ce niveau corresponde exactement à l'ancienne vitesse fixe. La puissan
 **départ** est distincte : `INITIAL_THRUST = 0.15`, un démarrage lent qui laisse le
 temps de lire les noms d'étoiles à l'approche
 (voir [chapitre 10](10-procedural-generation.md)). Le facteur $P / P_{\text{cruise}}$
-vaut donc :
+est exposé par `CameraState.travelFactor()` et consommé à l'identique par les deux
+couches mobiles (étoiles et nébuleuses). Il vaut :
 
 | `enginePower` | Facteur de vitesse | Effet |
 |---------------|---------------------|-------|
@@ -110,12 +114,12 @@ Dessinée par `StarfieldBehavior.drawThrustHud()`, appelée à la fin de `draw()
 | `GAUGE_HEIGHT` | 100 px | hauteur totale de la jauge |
 | `GAUGE_MARGIN` | 64 px | distance entre le bas de la jauge et le bas du panel |
 
-Le remplissage est calculé proportionnellement à `enginePower` et dessiné du bas
-vers le haut, pour mimer une jauge de carburant/puissance classique :
+Le remplissage est calculé proportionnellement à `camera.enginePower` et dessiné du
+bas vers le haut, pour mimer une jauge de carburant/puissance classique :
 
 ```java
-int fillHeight = (int) Math.round(GAUGE_HEIGHT * enginePower);
-g.fillRect(GAUGE_X + 1, gaugeBottom - fillHeight, GAUGE_WIDTH - 1, fillHeight);
+int fillHeight = (int) Math.round(GAUGE_HEIGHT * camera.enginePower);
+ctx.quads.fill(GAUGE_X + 1, gaugeBottom - fillHeight, GAUGE_WIDTH - 1, fillHeight, ...);
 ```
 
 La couleur de remplissage interpole entre trois teintes selon la puissance
@@ -134,16 +138,18 @@ alignée sur sa base.
 
 ```mermaid
 flowchart TD
-    A([update dt]) --> B{CTRL maintenu ?}
+    A([CameraState.update dt]) --> B{CTRL maintenu ?}
     B -- oui --> C[enginePower += k_thrust·dt]
     B -- non --> D{SHIFT maintenu ?}
     C --> D
     D -- oui --> E[enginePower -= k_thrust·dt]
     D -- non --> F[clamp enginePower ∈ 0..1]
     E --> F
-    F --> G[speedFactor = enginePower / 0.5]
-    G --> H[Pour chaque étoile :\nz -= TRAVEL_SPEED·travelSpeed·speedFactor / z · dt]
+    F --> G[travelFactor = enginePower / 0.5]
+    G --> H[Étoiles :\nz -= TRAVEL_SPEED·travelSpeed·travelFactor / z · dt]
+    G --> J[Nébuleuses :\nΔz = TRAVEL_SPEED·zoneSpeed·travelFactor / z_c · dt]
     H --> I[draw: jauge + texte vitesse]
+    J --> I
 ```
 
 ---
@@ -157,16 +163,19 @@ title Throttle — du clavier au HUD
 actor Joueur
 participant "GLWindow" as GW
 participant "InputState" as IS
+participant "CameraState" as CS
 participant "StarfieldBehavior" as SB
+participant "NebulaFieldBehavior" as NB
 
 Joueur -> GW : callback GLFW_KEY_LEFT_CONTROL (GLFW_PRESS)
 GW -> IS : thrustUp = true
 ...
 
 == Frame suivante (vsync ≈16,7 ms) ==
-SB -> IS : lit thrustUp / thrustDown
-SB -> SB : enginePower = clamp(enginePower ± k·dt, 0, 1)
-SB -> SB : applique speedFactor à l'avancement des étoiles
+CS -> IS : lit thrustUp / thrustDown
+CS -> CS : enginePower = clamp(enginePower ± k·dt, 0, 1)
+SB -> CS : travelFactor() — avancement des étoiles
+NB -> CS : travelFactor() — avancement des nébuleuses
 SB -> SB : drawThrustHud(ctx) — jauge (QuadRenderer) + vitesse pc/s (TextRenderer)
 @enduml
 ```

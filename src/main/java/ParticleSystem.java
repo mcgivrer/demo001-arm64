@@ -5,8 +5,8 @@ public class ParticleSystem extends Entity {
     public ParticleSystem(int width, int height, InputState input, long seed) {
         super(0, 0, width, height);
         camera = new CameraState(input, seed);
-        // Insertion order = draw order: clouds behind, starfield in front
-        addBehavior(new MagellanicCloudsBehavior(width, height, camera, seed));
+        // Insertion order = draw order: nebulae behind, starfield in front
+        addBehavior(new NebulaFieldBehavior(width, height, camera, seed));
         addBehavior(new StarfieldBehavior(width, height, input, camera, seed));
     }
 

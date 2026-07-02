@@ -16,7 +16,7 @@ L'architecture repose sur quatre couches :
 3. **Modèle de scène** (`Entity`, `Behavior`) — graphe d'objets génériques avec composition
    de comportements.
 4. **Comportements métier** (`ParticleSystem`, `StarfieldBehavior`,
-   `MagellanicCloudsBehavior`) — simulation physique et rendu.
+   `NebulaFieldBehavior`) — simulation physique et rendu.
 
 ![Architecture overview](illustrations/architecture-overview.svg)
 
@@ -49,7 +49,7 @@ classDiagram
     }
 
     class RenderContext {
-        +ShaderProgram starShader, cloudShader, quadShader, textShader, blitShader
+        +ShaderProgram starShader, nebulaShader, quadShader, textShader, blitShader
         +QuadRenderer quads
         +TextRenderer text
     }
@@ -79,9 +79,9 @@ classDiagram
     class CameraState {
         -double velYaw, velPitch, velRoll
         +double cosYaw, sinYaw, cosPitch, sinPitch, cosRoll, sinRoll
+        +double enginePower
         +update(double dt)
-        +orientationColumnMajor() float[]
-        +applyOrientation(double[], double[])
+        +travelFactor() double
     }
 
     class StarfieldBehavior {
@@ -99,11 +99,14 @@ classDiagram
         -subSeed(long seed, long n)$ long
     }
 
-    class MagellanicCloudsBehavior {
+    class NebulaFieldBehavior {
+        -double[] zcx, zcy, zcz
+        -double[] px, py, pz
         -float[] puffData
-        -int vao, fbo, fboTexture
+        -int vao, fbo, fboTexture, noiseTexture
         +update(Entity, double dt)
         +draw(Entity, RenderContext)
+        -initZone(int k, boolean scatter)
     }
 
     class StarNameGenerator {
@@ -117,12 +120,12 @@ classDiagram
     Entity "1" --> "*" Behavior : délègue
     ParticleSystem --|> Entity : étend
     StarfieldBehavior ..|> Behavior : implémente
-    MagellanicCloudsBehavior ..|> Behavior : implémente
+    NebulaFieldBehavior ..|> Behavior : implémente
     ParticleSystem --> CameraState : intègre 1×/frame
     ParticleSystem --> StarfieldBehavior : instancie
-    ParticleSystem --> MagellanicCloudsBehavior : instancie (arrière-plan)
-    StarfieldBehavior --> CameraState : lit cos/sin
-    MagellanicCloudsBehavior --> CameraState : uniform mat3
+    ParticleSystem --> NebulaFieldBehavior : instancie (arrière-plan)
+    StarfieldBehavior --> CameraState : lit cos/sin + enginePower
+    NebulaFieldBehavior --> CameraState : lit cos/sin + travelFactor
     StarfieldBehavior --> StarNameGenerator : nomme les étoiles
     Behavior ..> RenderContext : draw(ctx)
 ```
@@ -174,7 +177,7 @@ flowchart LR
     B --> C[Calcul Δt\nnanos → secondes]
     C --> D[entity.update Δt\nphysique 3D CPU]
     D --> E[glClear]
-    E --> F[MagellanicClouds.draw\nFBO cache + blit]
+    E --> F[NebulaField.draw\nFBO cache + blit]
     F --> G[Starfield.draw\npoints + étiquettes + HUD]
     G --> H[swapBuffers]
     H --> I([Frame affichée])
