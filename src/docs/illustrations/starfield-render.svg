@@ -1,58 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" width="760" height="420" font-family="monospace, sans-serif">
   <rect width="760" height="420" fill="#0d1117"/>
-  <text x="380" y="28" fill="#e6edf3" font-size="15" font-weight="bold" text-anchor="middle">Boucle de jeu — Timeline d'une frame</text>
+  <text x="380" y="28" fill="#e6edf3" font-size="15" font-weight="bold" text-anchor="middle">Boucle de jeu GLFW — Timeline d'une frame</text>
 
   <!-- Frame timeline bar -->
   <rect x="40" y="60" width="680" height="50" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
-  <text x="380" y="52" fill="#8b949e" font-size="10" text-anchor="middle">← une frame ≈ 16 ms →</text>
+  <text x="380" y="52" fill="#8b949e" font-size="10" text-anchor="middle">← une frame ≈ 16,7 ms (vsync 60 Hz) →</text>
 
-  <!-- Timer trigger -->
-  <rect x="40" y="65" width="80" height="40" rx="4" fill="#1f6feb" opacity="0.9"/>
-  <text x="80" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">Timer</text>
-  <text x="80" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">tick 16ms</text>
+  <!-- pollEvents -->
+  <rect x="40" y="65" width="90" height="40" rx="4" fill="#1f6feb" opacity="0.9"/>
+  <text x="85" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">pollEvents</text>
+  <text x="85" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">GLFW → InputState</text>
 
   <!-- Δt calc -->
-  <rect x="130" y="65" width="90" height="40" rx="4" fill="#388bfd" opacity="0.9"/>
-  <text x="175" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">Δt calc</text>
-  <text x="175" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">nanos→sec</text>
+  <rect x="138" y="65" width="80" height="40" rx="4" fill="#388bfd" opacity="0.9"/>
+  <text x="178" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">Δt calc</text>
+  <text x="178" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">nanos→sec</text>
 
   <!-- Physics update -->
-  <rect x="230" y="65" width="140" height="40" rx="4" fill="#238636" opacity="0.9"/>
-  <text x="300" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">entity.update(Δt)</text>
-  <text x="300" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">rotations + travel</text>
+  <rect x="226" y="65" width="130" height="40" rx="4" fill="#238636" opacity="0.9"/>
+  <text x="291" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">entity.update(Δt)</text>
+  <text x="291" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">rotations + travel</text>
 
-  <!-- repaint call -->
-  <rect x="380" y="65" width="90" height="40" rx="4" fill="#6e40c9" opacity="0.9"/>
-  <text x="425" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">repaint()</text>
-  <text x="425" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">EDT async</text>
-
-  <!-- paintComponent -->
-  <rect x="480" y="65" width="100" height="40" rx="4" fill="#6e40c9" opacity="0.9"/>
-  <text x="530" y="84" fill="#e6edf3" font-size="9" font-weight="bold" text-anchor="middle">paintComponent</text>
-  <text x="530" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">clear + AA on</text>
+  <!-- glClear -->
+  <rect x="364" y="65" width="70" height="40" rx="4" fill="#238636" opacity="0.7"/>
+  <text x="399" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">glClear</text>
+  <text x="399" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">~0,5 ms</text>
 
   <!-- Draw -->
-  <rect x="590" y="65" width="130" height="40" rx="4" fill="#b08800" opacity="0.9"/>
-  <text x="655" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">entity.draw(g2)</text>
-  <text x="655" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">500 étoiles</text>
+  <rect x="442" y="65" width="130" height="40" rx="4" fill="#b08800" opacity="0.9"/>
+  <text x="507" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">entity.draw(ctx)</text>
+  <text x="507" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">nuages + 500 étoiles + HUD</text>
+
+  <!-- swapBuffers -->
+  <rect x="580" y="65" width="140" height="40" rx="4" fill="#6e40c9" opacity="0.9"/>
+  <text x="650" y="84" fill="#e6edf3" font-size="10" font-weight="bold" text-anchor="middle">swapBuffers()</text>
+  <text x="650" y="98" fill="#cdd9e5" font-size="9" text-anchor="middle">bloque jusqu'au vsync</text>
 
   <!-- Connector arrows -->
-  <line x1="120" y1="85" x2="130" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
-  <line x1="220" y1="85" x2="230" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
-  <line x1="370" y1="85" x2="380" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
-  <line x1="470" y1="85" x2="480" y2="85" stroke="#d2a8ff" stroke-width="2" marker-end="url(#ap)"/>
-  <line x1="580" y1="85" x2="590" y2="85" stroke="#d2a8ff" stroke-width="2" marker-end="url(#ap)"/>
+  <line x1="130" y1="85" x2="138" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="218" y1="85" x2="226" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="356" y1="85" x2="364" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="434" y1="85" x2="442" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="572" y1="85" x2="580" y2="85" stroke="#58a6ff" stroke-width="2" marker-end="url(#a)"/>
 
-  <!-- Thread labels -->
-  <text x="210" y="130" fill="#388bfd" font-size="11" text-anchor="middle">← main thread / Timer callback →</text>
-  <text x="570" y="130" fill="#d2a8ff" font-size="11" text-anchor="middle">← Swing EDT →</text>
-  <line x1="40" y1="120" x2="370" y2="120" stroke="#388bfd" stroke-width="1.5" stroke-dasharray="0"/>
-  <line x1="380" y1="120" x2="720" y2="120" stroke="#d2a8ff" stroke-width="1.5" stroke-dasharray="0"/>
+  <!-- Thread label: single main thread, no EDT -->
+  <text x="380" y="130" fill="#388bfd" font-size="11" text-anchor="middle">← main thread (boucle GLFW classique — aucun EDT) →</text>
+  <line x1="40" y1="120" x2="720" y2="120" stroke="#388bfd" stroke-width="1.5"/>
 
   <!-- Starfield simulation -->
   <rect x="40" y="155" width="680" height="210" rx="8" fill="#010409"/>
   <rect x="40" y="155" width="680" height="210" rx="8" fill="none" stroke="#30363d" stroke-width="1"/>
-  <text x="380" y="178" fill="#6e7681" font-size="10" text-anchor="middle">Rendu simulé — champ d'étoiles (extrait)</text>
+  <text x="380" y="178" fill="#6e7681" font-size="10" text-anchor="middle">Rendu simulé — champ d'étoiles (extrait, un seul glDrawArrays(GL_POINTS))</text>
 
   <!-- Simulated stars -->
   <!-- Far small stars -->
@@ -96,20 +94,17 @@
   <text x="375" y="288" fill="#d2a8ff" font-size="9">type O (proche)</text>
 
   <!-- Labels inside starfield -->
-  <text x="125" y="219" fill="#6e7681" font-size="8">sub-px</text>
+  <text x="125" y="219" fill="#6e7681" font-size="8">gl_PointSize≈1</text>
   <text x="210" y="263" fill="#6e7681" font-size="8">r=2px</text>
 
   <!-- Frame counter annotation -->
   <rect x="40" y="375" width="680" height="36" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="380" y="392" fill="#8b949e" font-size="10" text-anchor="middle">Timer(16 ms) → Δt ≈ 0.016 s — 500 étoiles × (6 mul + 6 add + 1 div) physique + projection + alpha-cull + draw ellipse</text>
-  <text x="380" y="406" fill="#6e7681" font-size="9" text-anchor="middle">Anti-aliasing activé (RenderingHints.VALUE_ANTIALIAS_ON) — étoiles sub-pixel via fillRect(1×1) pour les z élevés</text>
+  <text x="380" y="392" fill="#8b949e" font-size="10" text-anchor="middle">Δt ≈ 0,0167 s — 500 étoiles × (6 mul + 6 add + 1 div) physique CPU, projetées et dessinées en un seul glDrawArrays(GL_POINTS, 0, 500)</text>
+  <text x="380" y="406" fill="#6e7681" font-size="9" text-anchor="middle">star.vert calcule gl_PointSize et l'alpha 1/z² ; star.frag dessine le profil radial cœur+halo via gl_PointCoord</text>
 
   <defs>
     <marker id="a" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
       <path d="M0,0 L0,7 L7,3.5 z" fill="#58a6ff"/>
-    </marker>
-    <marker id="ap" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
-      <path d="M0,0 L0,7 L7,3.5 z" fill="#d2a8ff"/>
     </marker>
   </defs>
 </svg>

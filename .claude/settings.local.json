@@ -25,7 +25,21 @@
       "Bash(printf '\\\\napp.exit.confirm.hint=Intro = s\\\\\\\\u00ed   \\\\\\\\u00b7   Esc = no\\\\n')",
       "Bash(printf '\\\\napp.exit.confirm.hint=Invio = s\\\\\\\\u00ec   \\\\\\\\u00b7   Esc = no\\\\n')",
       "Bash(DISPLAY=:0 java -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp target/classes:lib/*:__TRACKED_VAR__ GLBench)",
-      "Bash(LP_NUM_THREADS=8 DISPLAY=:0 java -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp target/classes:lib/*:__TRACKED_VAR__ GLBench)"
+      "Bash(LP_NUM_THREADS=8 DISPLAY=:0 java -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp target/classes:lib/*:__TRACKED_VAR__ GLBench)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(java -version)",
+      "Read(//tmp/**)",
+      "Bash(curl -fsSL -o jpkg.jar \"https://repo1.maven.org/maven2/org/panteleyev/jpackage-maven-plugin/1.8.0/jpackage-maven-plugin-1.8.0.jar\")",
+      "Bash(unzip -p jpkg.jar META-INF/maven/plugin.xml)",
+      "Bash(unzip -p jpkg.jar org/panteleyev/jpackage/ImageType.class)",
+      "Bash(javap -cp jpkg.jar org.panteleyev.jpackage.ImageType)",
+      "Bash(mvn -v)",
+      "Bash(command -v sdk)",
+      "Read(//home/orangepi/.sdkman/candidates/**)",
+      "Bash(apt list *)",
+      "Bash(dpkg-deb -I target/installer/*.deb)",
+      "Bash(dpkg-deb -c target/installer/*.deb)",
+      "Bash(grep -c \"\\\\.jar$\\\\|demo001\")"
     ]
   }
 }

@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.fdelorme</groupId>
+  <artifactId>demo001</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>demo001</name>
+  <description>Animation de vol 3D a travers un champ d'etoiles, rendue en OpenGL ES 3.0 (LWJGL/GLFW).</description>
+  <url>https://github.com/fdelorme/demo001</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Frederic Delorme</name>
+      <email>frederic.delorme@gmail.com</email>
+    </developer>
+  </developers>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>26</maven.compiler.release>
+    <main.class>Main</main.class>
+    <lwjgl.version>3.3.6</lwjgl.version>
+
+    <!--
+      Default native-library classifier: matches this dev machine (Linux ARM64).
+      Overridden automatically by whichever os-arch profile below is activated
+      by Maven's <os> detection (family + arch) on the machine actually running
+      the build.
+    -->
+    <lwjgl.natives>natives-linux-arm64</lwjgl.natives>
+
+    <!-- Consumed by the (opt-in) `installer` profile; set per os-arch profile. -->
+    <jpackage.type>DEB</jpackage.type>
+  </properties>
+
+  <dependencies>
+    <!-- GLFW window/input bindings -->
+    <dependency>
+      <groupId>org.lwjgl</groupId>
+      <artifactId>lwjgl</artifactId>
+      <version>${lwjgl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lwjgl</groupId>
+      <artifactId>lwjgl</artifactId>
+      <version>${lwjgl.version}</version>
+      <classifier>${lwjgl.natives}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.lwjgl</groupId>
+      <artifactId>lwjgl-glfw</artifactId>
+      <version>${lwjgl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lwjgl</groupId>
+      <artifactId>lwjgl-glfw</artifactId>
+      <version>${lwjgl.version}</version>
+      <classifier>${lwjgl.natives}</classifier>
+    </dependency>
+    <!-- OpenGL ES 3.0 bindings (see src/docs/12-opengl-pipeline.md) -->
+    <dependency>
+      <groupId>org.lwjgl</groupId>
+      <artifactId>lwjgl-opengles</artifactId>
+      <version>${lwjgl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lwjgl</groupId>
+      <artifactId>lwjgl-opengles</artifactId>
+      <version>${lwjgl.version}</version>
+      <classifier>${lwjgl.natives}</classifier>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>${project.artifactId}-${project.version}</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.15.0</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.5.0</version>
+      </plugin>
+
+      <!--
+        Produces a single self-contained, executable jar: classes + resources
+        (config, i18n, shaders) + the LWJGL jars for the active ${lwjgl.natives}
+        classifier, all merged. LWJGL extracts its native libraries from
+        classpath resources at startup, so packing them into a fat jar works
+        the same as separate jars on the classpath - and it gives jpackage a
+        single main jar to bundle, with no external lib/ or Class-Path to
+        keep in sync.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${main.class}</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--
+        `mvn exec:exec` runs the shaded jar the same way build.sh run does.
+        Not bound to any lifecycle phase - invoke it explicitly.
+      -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.6.3</version>
+        <configuration>
+          <executable>java</executable>
+          <arguments>
+            <argument>-Djava.awt.headless=true</argument>
+            <argument>--enable-native-access=ALL-UNNAMED</argument>
+            <argument>-jar</argument>
+            <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
+          </arguments>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!-- ============================================================
+         OS/architecture profiles: pick the right LWJGL natives classifier
+         and the native installer format for the machine running the build.
+         jpackage cannot cross-package: each target (OS x arch) installer
+         must be built on/for that same OS and CPU architecture - so CI (or
+         a developer) runs `mvn -Pinstaller package` once per target machine.
+         ============================================================ -->
+    <profile>
+      <id>linux-amd64</id>
+      <activation>
+        <os>
+          <name>Linux</name>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <lwjgl.natives>natives-linux</lwjgl.natives>
+        <jpackage.type>DEB</jpackage.type>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>linux-arm64</id>
+      <activation>
+        <os>
+          <name>Linux</name>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <lwjgl.natives>natives-linux-arm64</lwjgl.natives>
+        <jpackage.type>DEB</jpackage.type>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>macos-amd64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <lwjgl.natives>natives-macos</lwjgl.natives>
+        <jpackage.type>DMG</jpackage.type>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>macos-arm64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <lwjgl.natives>natives-macos-arm64</lwjgl.natives>
+        <jpackage.type>DMG</jpackage.type>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>windows-amd64</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <lwjgl.natives>natives-windows</lwjgl.natives>
+        <jpackage.type>MSI</jpackage.type>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>windows-arm64</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <lwjgl.natives>natives-windows-arm64</lwjgl.natives>
+        <jpackage.type>MSI</jpackage.type>
+      </properties>
+    </profile>
+
+    <!-- ============================================================
+         Opt-in: `mvn clean package -Pinstaller`
+         Builds a native installer (app-image + platform installer) around
+         the shaded jar, using jpackage from the JDK running the build.
+         Requires the platform packaging tool to be installed:
+           - Linux DEB/RPM: dpkg-deb / rpmbuild
+           - macOS DMG/PKG: Xcode command line tools
+           - Windows MSI/EXE: WiX Toolset v3
+         ============================================================ -->
+    <profile>
+      <id>installer</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.panteleyev</groupId>
+            <artifactId>jpackage-maven-plugin</artifactId>
+            <version>1.8.0</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>jpackage</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <name>${project.artifactId}</name>
+              <appVersion>${project.version}</appVersion>
+              <vendor>Frederic Delorme</vendor>
+              <copyright>Copyright (c) 2026 Frederic Delorme</copyright>
+              <destination>${project.build.directory}/installer</destination>
+              <input>${project.build.directory}</input>
+              <mainJar>${project.build.finalName}.jar</mainJar>
+              <mainClass>${main.class}</mainClass>
+              <type>${jpackage.type}</type>
+              <javaOptions>
+                <option>-Djava.awt.headless=true</option>
+                <option>--enable-native-access=ALL-UNNAMED</option>
+              </javaOptions>
+
+              <!-- Linux (DEB/RPM) -->
+              <linuxPackageName>demo001</linuxPackageName>
+              <linuxAppCategory>Game</linuxAppCategory>
+              <linuxShortcut>true</linuxShortcut>
+              <linuxMenuGroup>Games</linuxMenuGroup>
+              <linuxDebMaintainer>frederic.delorme@gmail.com</linuxDebMaintainer>
+
+              <!-- macOS (DMG/PKG) -->
+              <macPackageName>demo001</macPackageName>
+              <macPackageIdentifier>com.fdelorme.demo001</macPackageIdentifier>
+              <macAppCategory>public.app-category.action-games</macAppCategory>
+
+              <!-- Windows (MSI/EXE) -->
+              <winMenu>true</winMenu>
+              <winShortcut>true</winShortcut>
+              <winDirChooser>true</winDirChooser>
+              <winUpgradeUuid>8f2f0a2e-9d3b-4e7a-9d0a-1a2b3c4d5e6f</winUpgradeUuid>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

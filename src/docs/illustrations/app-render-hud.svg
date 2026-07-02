@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" font-family="monospace, sans-serif">
-  <!-- Mockup of the actual GamePanel render: black background + starfield + thrust HUD overlay -->
+  <!-- Mockup of the actual OpenGL render (RenderContext/GLWindow): black background + starfield + thrust HUD overlay -->
   <rect width="800" height="600" fill="#000000"/>
 
   <!-- Scattered stars, colours sampled from the Harvard spectral classes (see ch.04) -->
@@ -57,5 +57,5 @@
 
   <!-- caption -->
   <rect x="0" y="566" width="800" height="34" fill="#0d1117"/>
-  <text x="400" y="588" fill="#8b949e" font-size="12" text-anchor="middle">Rendu GamePanel — champ d'étoiles + HUD de propulsion + grille d'aide des contrôles (touche H)</text>
+  <text x="400" y="588" fill="#8b949e" font-size="12" text-anchor="middle">Rendu GL (RenderContext) — champ d'étoiles + HUD de propulsion + grille d'aide des contrôles (touche H)</text>
 </svg>

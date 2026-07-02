@@ -118,6 +118,8 @@ toute fin de `draw()` (après le HUD de propulsion) si `input.showHelp` est vrai
 panneau semi-transparent arrondi (rectangle SDF du `quad` shader), ancré en bas à
 droite, énumère l'intégralité du mapping clavier/souris ci-dessus.
 
+![Rendu complet — HUD de propulsion et grille d'aide](illustrations/app-render-hud.svg)
+
 ---
 
 ## Quitter l'application — ESCAPE
