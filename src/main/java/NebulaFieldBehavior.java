@@ -501,6 +501,11 @@ public class NebulaFieldBehavior implements Behavior {
 
     @Override
     public void draw(Entity entity, RenderContext ctx) {
+        int[] prevFbo = new int[1];
+        int[] prevViewport = new int[4];
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, prevFbo);
+        glGetIntegerv(GL_VIEWPORT, prevViewport);
+
         // Fill the instance data (alpha baked with the zone fade) and compute
         // the exact screen bounding box of the visible puffs in the same pass
         int panelW = viewW, panelH = viewH;
@@ -574,8 +579,8 @@ public class NebulaFieldBehavior implements Behavior {
             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, TOTAL_PUFFS);
             glBindVertexArray(0);
 
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glViewport(0, 0, panelW, panelH);
+            glBindFramebuffer(GL_FRAMEBUFFER, prevFbo[0]);
+            glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glClearColor(0f, 0f, 0f, 1f);
             rotSinceRefresh      = 0;

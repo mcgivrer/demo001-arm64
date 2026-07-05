@@ -43,7 +43,7 @@ sequenceDiagram
     participant E as Entity / Behaviors
 
     M->>W: new GLWindow — GLFW + contexte ES 3.0
-    M->>C: new RenderContext — compile les 5 shaders
+    M->>C: new RenderContext — compile les 6 shaders
     M->>E: init(ctx) — création des VAO/VBO/FBO
     loop chaque frame (vsync)
         M->>W: pollEvents() → InputState
@@ -57,7 +57,7 @@ sequenceDiagram
 
 ---
 
-## Les cinq paires de shaders
+## Les six paires de shaders
 
 | Fichiers | Passe | Technique |
 |---|---|---|
@@ -66,6 +66,7 @@ sequenceDiagram
 | `blit.vert` / `blit.frag` | composition nébuleuses | quad texturé sur le rectangle englobant du calque |
 | `quad.vert` / `quad.frag` | HUD | rectangle arrondi par **SDF**, remplissage + bordure |
 | `text.vert` / `text.frag` | texte | quad texturé, teinte × couverture des glyphes |
+| `transition.vert` / `transition.frag` | transitions de scènes | compositing plein écran de deux textures de scènes (`FADE`, `CROSS_FADE`, `WIPE_LEFT`, `ZOOM`) |
 
 Tous en `#version 300 es`, `precision highp float`, chargés et liés par
 `ShaderProgram` depuis le classpath (`/shaders/<nom>.vert|.frag`).
@@ -166,7 +167,7 @@ class GLWindow {
 }
 
 class RenderContext {
-    + starShader, nebulaShader, quadShader, textShader, blitShader
+  + starShader, nebulaShader, quadShader, textShader, blitShader, transitionShader
     + quads : QuadRenderer
     + text : TextRenderer
 }

@@ -58,6 +58,7 @@ All technical documentation lives in `src/docs/`, one Markdown file per chapter 
 | `11-nebula-field.md` | Volumetric nebula zones (3D positions, travel/respawn, fBm noise, hybrid FBO cache) |
 | `12-opengl-pipeline.md` | OpenGL ES 3.0 pipeline (LWJGL/GLFW/EGL), shaders, VBOs, FBO layer cache |
 | `13-scenes.md` | Scene system (TitleScene, TravelScene), lifecycle and transition model |
+| `14-map-scene.md` | MapScene star map (2-level grid, star projections, hover info panel) |
 
 ### Documentation rules
 

@@ -12,6 +12,7 @@ public class RenderContext {
     public final ShaderProgram quadShader;
     public final ShaderProgram textShader;
     public final ShaderProgram blitShader;
+    public final ShaderProgram transitionShader;
 
     public final QuadRenderer quads;
     public final TextRenderer text;
@@ -25,6 +26,7 @@ public class RenderContext {
         quadShader   = new ShaderProgram("quad");
         textShader   = new ShaderProgram("text");
         blitShader   = new ShaderProgram("blit");
+        transitionShader = new ShaderProgram("transition");
 
         quads = new QuadRenderer(quadShader, width, height);
         text  = new TextRenderer(textShader, width, height);

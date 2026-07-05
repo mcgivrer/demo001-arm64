@@ -11,8 +11,9 @@ Dans l'état actuel :
 
 - `TitleScene` affiche l'écran titre et propose de démarrer le voyage
 - `TravelScene` encapsule l'ancienne simulation (via `ParticleSystem`)
-- les transitions sont modélisées (`SceneTransition`, `SceneTransitionEffect`) et
-  déjà transportées jusqu'au gestionnaire, avec exécution immédiate pour l'instant
+- `MapScene` affiche la carte stellaire interactive
+- les transitions sont pilotées par un moteur temporel + compositing offscreen
+  (`TransitionRenderer`) entre une scène source et une scène cible
 
 ![Flux des scenes](illustrations/scene-flow.svg)
 
@@ -24,6 +25,12 @@ Dans l'état actuel :
 public interface Scene {
     default void init(RenderContext ctx) {}
     default void resize(int width, int height) {}
+  default boolean onKeyPressed(int key, int mods) { return false; }
+  default boolean onKeyReleased(int key, int mods) { return false; }
+  default boolean onMouseButtonPressed(int button, double x, double y, int mods) { return false; }
+  default boolean onMouseButtonReleased(int button, double x, double y, int mods) { return false; }
+  default boolean onMouseMoved(double x, double y) { return false; }
+  default boolean onMouseScrolled(double xoffset, double yoffset) { return false; }
     void update(double dt);
     void draw(RenderContext ctx);
     default SceneTransition pollTransition() { return null; }
@@ -32,18 +39,26 @@ public interface Scene {
 ```
 
 `Main` agit comme un mini scene-manager : il appelle le cycle de vie de la
-scène active, lit sa transition éventuelle, puis exécute `switchScene(...)`.
+scène active, route les événements d'entrée bruts (clavier/souris) vers la
+scène interactive courante (`onKeyPressed`, `onMouseMoved`, etc.), lit sa
+transition éventuelle, puis déclenche le moteur de transition (durée, effet,
+scène cible). Pendant la transition, deux scènes coexistent (`from` / `to`) et
+sont compositées via shader.
 
 ```mermaid
 flowchart LR
     A[GLFW pollEvents] --> B[Main update dt]
-    B --> C[activeScene.update dt]
-    C --> D{pollTransition}
-    D -- null --> E[activeScene.draw]
-    D -- request --> F[switchScene target]
-    F --> G[newScene.init + resize]
-    G --> E
-    E --> H[swapBuffers]
+  B --> C{transitionActive ?}
+  C -- non --> D[activeScene.update + pollTransition]
+  D --> E{request ?}
+  E -- oui --> F[init toScene + start transition]
+  E -- non --> G[draw activeScene]
+  F --> H[update transition time]
+  C -- oui --> H
+  H --> I[capture from/to scenes in FBO]
+  I --> J[transition shader compose]
+  J --> K[swapBuffers]
+  G --> K
 ```
 
 ---
@@ -83,8 +98,25 @@ interface Scene {
 
 class Main {
   -Scene activeScene
+  -TransitionRenderer transitionRenderer
+  -boolean transitionActive
+  -double transitionElapsed
+  -double transitionDuration
+  -SceneTransitionEffect transitionEffect
+  -Scene transitionFromScene
+  -Scene transitionToScene
   -switchScene(sceneId, ctx)
   -applyTransition(SceneTransition, ctx)
+  -updateTransition(dt, ctx)
+  -drawTransition(ctx)
+}
+
+class TransitionRenderer {
+  -int fboFrom, fboTo
+  -int texFrom, texTo
+  +captureFrom(Scene, RenderContext)
+  +captureTo(Scene, RenderContext)
+  +draw(RenderContext, SceneTransitionEffect, progress)
 }
 
 class TitleScene {
@@ -125,6 +157,12 @@ class TravelScene {
   +draw(ctx)
 }
 
+class MapScene {
+  -List~MapStar~ stars
+  +update(dt)
+  +draw(ctx)
+}
+
 class SceneTransition {
   -String targetSceneId
   -SceneTransitionEffect effect
@@ -134,11 +172,16 @@ class SceneTransition {
 enum SceneTransitionEffect {
   CUT
   FADE
+  CROSS_FADE
+  WIPE_LEFT
+  ZOOM
 }
 
 Main --> Scene : pilote
+Main --> TransitionRenderer : compose
 Scene <|.. TitleScene
 Scene <|.. TravelScene
+Scene <|.. MapScene
 TitleScene --> SceneTransition : emet
 TitleScene --> TextObject : compose
 TitleScene --> ControlUI : compose
@@ -152,7 +195,7 @@ SceneTransition --> SceneTransitionEffect
 
 ## Modèle de transition
 
-Une transition transporte déjà les paramètres nécessaires aux effets futurs :
+Une transition transporte les paramètres nécessaires au moteur :
 
 - scène cible
 - type (`CUT`, `FADE`)
@@ -189,8 +232,40 @@ et un mix de scènes (cross-fade) :
   </mrow>
 </math>
 
-Actuellement, `Main.applyTransition(...)` effectue un switch immédiat ; le
-point d'extension est en place pour ajouter un vrai rendu temporel.
+Le moteur courant rend **les deux scènes** dans des textures et applique un
+shader plein écran selon l'effet choisi.
+
+1. création de `toScene` (init + resize)
+2. capture de `fromScene` et `toScene` en FBO chaque frame de transition
+3. compositing shader selon l'effet et la progression
+4. fin de transition: `activeScene = toScene`, puis `fromScene.dispose()`
+
+avec :
+
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+  <mrow>
+    <mi>α</mi><mo>(</mo><mi>t</mi><mo>)</mo>
+    <mo>=</mo>
+    <mrow>
+      <mo>{</mo>
+      <mtable>
+        <mtr><mtd><mn>2</mn><mi>t</mi></mtd><mtd><mtext>si </mtext><mi>t</mi><mo>&lt;</mo><mn>0.5</mn></mtd></mtr>
+        <mtr><mtd><mn>2</mn><mo>(</mo><mn>1</mn><mo>-</mo><mi>t</mi><mo>)</mo></mtd><mtd><mtext>sinon</mtext></mtd></mtr>
+      </mtable>
+      <mo>}</mo>
+    </mrow>
+  </mrow>
+</math>
+
+Les effets implémentés sont :
+
+- `FADE` : fade-out/fade-in via noir, avec easing non linéaire (in/out plus doux)
+- `CROSS_FADE` : mélange progressif source/cible avec courbe temporelle lissée
+- `WIPE_LEFT` : révélation gauche->droite de la scène cible avec bord feather adaptatif
+- `ZOOM` : zoom-out léger de la source + zoom-in de la cible, avec dissolve eased
+
+Le contrat de scènes reste inchangé ; ajouter d'autres transitions consiste à
+étendre la logique de compositing shader.
 
 ---
 

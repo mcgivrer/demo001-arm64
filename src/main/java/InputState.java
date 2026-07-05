@@ -4,16 +4,21 @@ public class InputState {
     public boolean rollLeft, rollRight;
     public boolean brake;
     public boolean thrustUp, thrustDown;
+    public boolean mapZoomIn, mapZoomOut;
+    public boolean mapOrbitLeft, mapOrbitRight;
     public boolean showHelp = true;
     public boolean startRequested;
     public boolean escapeRequested;
+    public boolean mapRequested;
     public boolean uiActivateRequested;
     public int     uiTabStep;
     public int     uiFocusStep;
     public boolean uiClickRequested;
     public double  uiClickX, uiClickY;
     public double  pointerX, pointerY;
+    public double  scrollDeltaY;
     public boolean mouseDragging;
+    public boolean mouseOrbitDragging;
     public double  mouseNormX, mouseNormY;
 
     public boolean consumeStartRequested() {
@@ -25,6 +30,12 @@ public class InputState {
     public boolean consumeEscapeRequested() {
         boolean requested = escapeRequested;
         escapeRequested = false;
+        return requested;
+    }
+
+    public boolean consumeMapRequested() {
+        boolean requested = mapRequested;
+        mapRequested = false;
         return requested;
     }
 
@@ -50,5 +61,11 @@ public class InputState {
         boolean requested = uiClickRequested;
         uiClickRequested = false;
         return requested;
+    }
+
+    public double consumeScrollDeltaY() {
+        double delta = scrollDeltaY;
+        scrollDeltaY = 0.0;
+        return delta;
     }
 }

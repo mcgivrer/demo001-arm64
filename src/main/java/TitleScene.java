@@ -1,6 +1,8 @@
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.lwjgl.glfw.GLFW.*;
+
 public class TitleScene implements Scene {
 
     private final InputState input;
@@ -46,41 +48,66 @@ public class TitleScene implements Scene {
 
     @Override
     public void update(double dt) {
-        input.consumeEscapeRequested();
-
-        int navStep = input.consumeUiTabStep() + input.consumeUiFocusStep();
-        if (navStep != 0 && !controls.isEmpty()) {
-            while (navStep != 0) {
-                int direction = navStep > 0 ? 1 : -1;
-                focusedControl = (focusedControl + direction + controls.size()) % controls.size();
-                navStep -= direction;
-            }
-            updateControlFocus();
-        }
-
         for (ControlUI control : controls) {
             control.setHovered(control.contains(input.pointerX, input.pointerY));
-        }
-
-        if (input.consumeUiClickRequested()) {
-            for (int i = 0; i < controls.size(); i++) {
-                ControlUI control = controls.get(i);
-                if (control.contains(input.uiClickX, input.uiClickY)) {
-                    focusedControl = i;
-                    updateControlFocus();
-                    control.activate();
-                    break;
-                }
-            }
-        }
-
-        if (input.consumeUiActivateRequested() || input.consumeStartRequested()) {
-            if (!controls.isEmpty()) controls.get(focusedControl).activate();
         }
 
         for (Entity entity : entities) {
             entity.update(dt);
         }
+    }
+
+    @Override
+    public boolean onKeyPressed(int key, int mods) {
+        switch (key) {
+            case GLFW_KEY_ENTER, GLFW_KEY_KP_ENTER -> {
+                if (!controls.isEmpty()) controls.get(focusedControl).activate();
+                return true;
+            }
+            case GLFW_KEY_TAB -> {
+                moveFocus((mods & GLFW_MOD_SHIFT) != 0 ? -1 : 1);
+                return true;
+            }
+            case GLFW_KEY_LEFT, GLFW_KEY_UP -> {
+                moveFocus(-1);
+                return true;
+            }
+            case GLFW_KEY_RIGHT, GLFW_KEY_DOWN -> {
+                moveFocus(1);
+                return true;
+            }
+            case GLFW_KEY_ESCAPE -> {
+                return true;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    @Override
+    public boolean onMouseButtonPressed(int button, double x, double y, int mods) {
+        input.pointerX = x;
+        input.pointerY = y;
+        if (button != GLFW_MOUSE_BUTTON_LEFT) return false;
+
+        for (int i = 0; i < controls.size(); i++) {
+            ControlUI control = controls.get(i);
+            if (control.contains(x, y)) {
+                focusedControl = i;
+                updateControlFocus();
+                control.activate();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onMouseMoved(double x, double y) {
+        input.pointerX = x;
+        input.pointerY = y;
+        return false;
     }
 
     @Override
@@ -168,6 +195,12 @@ public class TitleScene implements Scene {
         for (int i = 0; i < controls.size(); i++) {
             controls.get(i).setFocused(i == focusedControl);
         }
+    }
+
+    private void moveFocus(int step) {
+        if (controls.isEmpty() || step == 0) return;
+        focusedControl = (focusedControl + step + controls.size()) % controls.size();
+        updateControlFocus();
     }
 
     private void drawCentered(RenderContext ctx, String text, int baselineY,

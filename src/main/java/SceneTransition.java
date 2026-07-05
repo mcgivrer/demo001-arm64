@@ -18,6 +18,18 @@ public final class SceneTransition {
         return new SceneTransition(targetSceneId, SceneTransitionEffect.FADE, durationSeconds);
     }
 
+    public static SceneTransition crossFadeTo(String targetSceneId, double durationSeconds) {
+        return new SceneTransition(targetSceneId, SceneTransitionEffect.CROSS_FADE, durationSeconds);
+    }
+
+    public static SceneTransition wipeLeftTo(String targetSceneId, double durationSeconds) {
+        return new SceneTransition(targetSceneId, SceneTransitionEffect.WIPE_LEFT, durationSeconds);
+    }
+
+    public static SceneTransition zoomTo(String targetSceneId, double durationSeconds) {
+        return new SceneTransition(targetSceneId, SceneTransitionEffect.ZOOM, durationSeconds);
+    }
+
     public String targetSceneId() {
         return targetSceneId;
     }

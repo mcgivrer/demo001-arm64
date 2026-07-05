@@ -11,7 +11,7 @@ L'architecture repose sur cinq couches :
 
 1. **Infrastructure applicative** (`Main`, `GLWindow`) — chargement de la configuration,
    localisation, fenêtre GLFW + contexte GL et boucle de jeu.
-2. **Gestion de scènes** (`Scene`, `TitleScene`, `TravelScene`, `SceneTransition`,
+2. **Gestion de scènes** (`Scene`, `TitleScene`, `TravelScene`, `MapScene`, `SceneTransition`,
    `TextObject`, `ControlUI`, `ButtonObject`) —
     découpage des écrans, cycle de vie et navigation.
 3. **Infrastructure de rendu** (`RenderContext`, `ShaderProgram`, `QuadRenderer`,
@@ -80,6 +80,12 @@ classDiagram
 
     class TravelScene {
         -List~Entity~ entities
+        +update(double dt)
+        +draw(RenderContext)
+    }
+
+    class MapScene {
+        -List~MapStar~ stars
         +update(double dt)
         +draw(RenderContext)
     }
@@ -168,6 +174,7 @@ classDiagram
     Main --> Scene : active + pilote
     Scene <|.. TitleScene
     Scene <|.. TravelScene
+    Scene <|.. MapScene
     TextObject --|> Entity
     ControlUI --|> Entity
     ButtonObject --|> ControlUI

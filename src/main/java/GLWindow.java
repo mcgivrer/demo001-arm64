@@ -18,8 +18,17 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  */
 public class GLWindow {
 
+    public interface InputHandler {
+        boolean onKeyPressed(int key, int mods);
+        boolean onKeyReleased(int key, int mods);
+        boolean onMouseButtonPressed(int button, double x, double y, int mods);
+        boolean onMouseButtonReleased(int button, double x, double y, int mods);
+        boolean onMouseMoved(double x, double y);
+        boolean onMouseScrolled(double xoffset, double yoffset);
+    }
+
     private final long handle;
-    private final InputState input;
+    private final InputHandler inputHandler;
 
     // Current framebuffer size, kept in sync by the GLFW callback
     private int width, height;
@@ -29,10 +38,10 @@ public class GLWindow {
     private boolean fullscreen;
     private int windowedX, windowedY, windowedW, windowedH;
 
-    public GLWindow(int width, int height, String title, InputState input) {
+    public GLWindow(int width, int height, String title, InputHandler inputHandler) {
         this.width  = width;
         this.height = height;
-        this.input  = input;
+        this.inputHandler = inputHandler;
 
         GLFWErrorCallback.createPrint(System.err).set();
         if (!glfwInit()) throw new IllegalStateException("GLFW init failed");
@@ -56,8 +65,9 @@ public class GLWindow {
         handle = h;
 
         glfwSetKeyCallback(handle, (w, key, scancode, action, mods) -> onKey(key, action, mods));
-        glfwSetMouseButtonCallback(handle, (w, button, action, mods) -> onMouseButton(button, action));
+        glfwSetMouseButtonCallback(handle, (w, button, action, mods) -> onMouseButton(button, action, mods));
         glfwSetCursorPosCallback(handle, (w, x, y) -> onMouseMove(x, y));
+        glfwSetScrollCallback(handle, (w, xoffset, yoffset) -> onMouseScroll(xoffset, yoffset));
         glfwSetFramebufferSizeCallback(handle, (w, fbWidth, fbHeight) -> {
             if (fbWidth > 0 && fbHeight > 0) {   // 0×0 while minimised
                 this.width  = fbWidth;
@@ -101,85 +111,43 @@ public class GLWindow {
         glfwSwapInterval(1);   // vsync can reset across a monitor switch
     }
 
-    // --- Input callbacks (same mapping as the former Swing GamePanel) ------
+    // --- Input callbacks ----------------------------------------------------
 
     private void onKey(int key, int action, int mods) {
         if (action == GLFW_REPEAT) return;
-        boolean down = action == GLFW_PRESS;
-
-        if (down && key == GLFW_KEY_ESCAPE) {
-            input.escapeRequested = true;
-            return;
+        if (action == GLFW_PRESS) {
+            boolean handled = inputHandler != null && inputHandler.onKeyPressed(key, mods);
+            if (handled) return;
+        } else if (action == GLFW_RELEASE) {
+            boolean handled = inputHandler != null && inputHandler.onKeyReleased(key, mods);
+            if (handled) return;
         }
 
-        switch (key) {
-            case GLFW_KEY_ENTER, GLFW_KEY_KP_ENTER -> {
-                if (down) {
-                    input.startRequested = true;
-                    input.uiActivateRequested = true;
-                }
+        if (action == GLFW_PRESS) {
+            switch (key) {
+                case GLFW_KEY_F, GLFW_KEY_F11 -> toggleFullscreen();
             }
-            case GLFW_KEY_TAB -> {
-                if (down) {
-                    input.uiTabStep += (mods & GLFW_MOD_SHIFT) != 0 ? -1 : 1;
-                }
-            }
-            case GLFW_KEY_F, GLFW_KEY_F11           -> { if (down) toggleFullscreen(); }
-            case GLFW_KEY_LEFT, GLFW_KEY_A -> {
-                input.yawLeft = down;
-                if (down && key == GLFW_KEY_LEFT) input.uiFocusStep -= 1;
-            }
-            case GLFW_KEY_RIGHT, GLFW_KEY_D -> {
-                input.yawRight = down;
-                if (down && key == GLFW_KEY_RIGHT) input.uiFocusStep += 1;
-            }
-            case GLFW_KEY_UP, GLFW_KEY_W -> {
-                input.pitchUp = down;
-                if (down && key == GLFW_KEY_UP) input.uiFocusStep -= 1;
-            }
-            case GLFW_KEY_DOWN, GLFW_KEY_S -> {
-                input.pitchDown = down;
-                if (down && key == GLFW_KEY_DOWN) input.uiFocusStep += 1;
-            }
-            case GLFW_KEY_Q                         -> input.rollLeft   = down;
-            case GLFW_KEY_E                         -> input.rollRight  = down;
-            case GLFW_KEY_SPACE                     -> input.brake      = down;
-            case GLFW_KEY_LEFT_CONTROL, GLFW_KEY_RIGHT_CONTROL -> input.thrustUp   = down;
-            case GLFW_KEY_LEFT_SHIFT, GLFW_KEY_RIGHT_SHIFT     -> input.thrustDown = down;
-            case GLFW_KEY_H                         -> { if (down) input.showHelp = !input.showHelp; }
         }
     }
 
-    private void onMouseButton(int button, int action) {
-        if (button != GLFW_MOUSE_BUTTON_LEFT) return;
+    private void onMouseButton(int button, int action, int mods) {
+        if (action != GLFW_PRESS && action != GLFW_RELEASE) return;
+        double[] x = new double[1], y = new double[1];
+        glfwGetCursorPos(handle, x, y);
+
         if (action == GLFW_PRESS) {
-            input.mouseDragging = true;
-            double[] x = new double[1], y = new double[1];
-            glfwGetCursorPos(handle, x, y);
-            input.pointerX = x[0];
-            input.pointerY = y[0];
-            input.uiClickX = x[0];
-            input.uiClickY = y[0];
-            input.uiClickRequested = true;
-            updateMouseNorm(x[0], y[0]);
-        } else if (action == GLFW_RELEASE) {
-            input.mouseDragging = false;
-            input.mouseNormX = 0;
-            input.mouseNormY = 0;
+            if (inputHandler != null) inputHandler.onMouseButtonPressed(button, x[0], y[0], mods);
+        } else {
+            if (inputHandler != null) inputHandler.onMouseButtonReleased(button, x[0], y[0], mods);
         }
     }
 
     private void onMouseMove(double x, double y) {
-        input.pointerX = x;
-        input.pointerY = y;
-        if (input.mouseDragging) updateMouseNorm(x, y);
+        if (inputHandler != null) inputHandler.onMouseMoved(x, y);
     }
 
-    private void updateMouseNorm(double x, double y) {
-        double halfW = width  / 2.0;
-        double halfH = height / 2.0;
-        input.mouseNormX = Math.clamp((x - halfW) / halfW, -1.0, 1.0);
-        input.mouseNormY = Math.clamp((y - halfH) / halfH, -1.0, 1.0);
+    private void onMouseScroll(double xoffset, double yoffset) {
+        if (inputHandler != null) inputHandler.onMouseScrolled(xoffset, yoffset);
     }
 
     // --- Loop helpers -------------------------------------------------------

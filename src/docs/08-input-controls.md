@@ -79,6 +79,12 @@ GLFW sont invoqués par `glfwPollEvents()`, appelé **sur le thread de la boucle
 jeu elle-même** — il n'y a donc pas de condition de course, aucun `volatile` ni
 verrou n'est nécessaire.
 
+Depuis l'introduction du système de scènes, `GLWindow` ne mappe plus directement
+toutes les touches vers des actions globales : il émet des événements bruts,
+relayés par `Main` vers la scène interactive (`onKeyPressed`, `onKeyReleased`,
+`onMouseButtonPressed`, `onMouseMoved`, `onMouseScrolled`). Chaque scène décide
+des actions à appliquer, ce qui évite les collisions de mapping entre écrans.
+
 ---
 
 ## Mapping des contrôles
@@ -98,8 +104,9 @@ verrou n'est nécessaire.
 | Demarrer le voyage (ecran titre) | ENTER | —                               |
 | Navigation boutons UI (ecran titre/menu) | TAB / SHIFT+TAB, FLECHES | —     |
 | Activer bouton UI (ecran titre/menu) | ENTER | Clic gauche                 |
-| Retour au titre (depuis TravelScene) | ESCAPE | —                           |
-| Afficher/masquer l'aide | H              | —                               |
+| Ouvrir la carte stellaire (depuis TravelScene) | H | —                       |
+| Retour au voyage (depuis MapScene) | ESCAPE | —                              |
+| Afficher/masquer l'aide | F1             | —                               |
 
 La puissance moteur (`thrustUp`/`thrustDown`) pilote la vitesse d'avancement du
 vaisseau et alimente le HUD — voir [chapitre 9](09-thrust-engine.md).
@@ -143,7 +150,8 @@ droite, énumère l'intégralité du mapping clavier/souris ci-dessus.
 
 La touche ESCAPE déclenche désormais un événement transient
 `input.escapeRequested = true`. Dans `TravelScene`, cet événement est consommé pour
-émettre une transition vers `TitleScene` (retour écran titre). Dans `TitleScene`,
+émettre une transition vers `TitleScene` (retour écran titre). Dans `MapScene`, il
+déclenche une transition de retour vers `TravelScene`. Dans `TitleScene`,
 l'événement est consommé et ignoré pour éviter un effet de bord lors d'une future
 entrée dans la simulation.
 
@@ -161,6 +169,9 @@ focalisé). TAB remplit `uiTabStep` (`+1` ou `-1` avec SHIFT), les flèches
 alimentent `uiFocusStep` (`-1` pour gauche/haut, `+1` pour droite/bas), et un
 clic gauche alimente `uiClickRequested` avec ses coordonnées pixel
 (`uiClickX`, `uiClickY`).
+
+La touche H remplit `mapRequested`, consommé par `TravelScene` pour ouvrir
+`MapScene`. Le toggle d'aide passe sur `F1`.
 
 ---
 

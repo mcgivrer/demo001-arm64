@@ -13,8 +13,10 @@ public class Main {
     private static final int    DEFAULT_HEIGHT = 600;
     private static final String DEFAULT_LANG   = "EN";
     private static final long   DEFAULT_SEED   = 42L;
+    private static final double MIN_TRANSITION_DURATION = 0.15;
     private static final String SCENE_TITLE    = "title";
     private static final String SCENE_TRAVEL   = "travel";
+    private static final String SCENE_MAP      = "map";
     private static final String SCENE_QUIT     = "quit";
 
     private final int    windowWidth;
@@ -27,6 +29,15 @@ public class Main {
     private long lastTime;
     private Scene activeScene;
     private GLWindow window;
+    private TransitionRenderer transitionRenderer;
+
+    private boolean transitionActive;
+    private double transitionElapsed;
+    private double transitionDuration;
+    private String transitionTargetSceneId;
+    private SceneTransitionEffect transitionEffect = SceneTransitionEffect.CUT;
+    private Scene transitionFromScene;
+    private Scene transitionToScene;
 
     public Main() {
         System.out.println("Starting Application...");
@@ -97,8 +108,45 @@ public class Main {
      * swap — vsync (swapInterval 1) paces the loop at the display rate.
      */
     private void runRenderLoop() {
-        window = new GLWindow(windowWidth, windowHeight, windowTitle, inputState);
+        window = new GLWindow(windowWidth, windowHeight, windowTitle, new GLWindow.InputHandler() {
+            @Override
+            public boolean onKeyPressed(int key, int mods) {
+                Scene scene = inputScene();
+                return scene != null && scene.onKeyPressed(key, mods);
+            }
+
+            @Override
+            public boolean onKeyReleased(int key, int mods) {
+                Scene scene = inputScene();
+                return scene != null && scene.onKeyReleased(key, mods);
+            }
+
+            @Override
+            public boolean onMouseButtonPressed(int button, double x, double y, int mods) {
+                Scene scene = inputScene();
+                return scene != null && scene.onMouseButtonPressed(button, x, y, mods);
+            }
+
+            @Override
+            public boolean onMouseButtonReleased(int button, double x, double y, int mods) {
+                Scene scene = inputScene();
+                return scene != null && scene.onMouseButtonReleased(button, x, y, mods);
+            }
+
+            @Override
+            public boolean onMouseMoved(double x, double y) {
+                Scene scene = inputScene();
+                return scene != null && scene.onMouseMoved(x, y);
+            }
+
+            @Override
+            public boolean onMouseScrolled(double xoffset, double yoffset) {
+                Scene scene = inputScene();
+                return scene != null && scene.onMouseScrolled(xoffset, yoffset);
+            }
+        });
         RenderContext ctx = new RenderContext(windowWidth, windowHeight);
+        transitionRenderer = new TransitionRenderer(windowWidth, windowHeight);
         switchScene(SCENE_TITLE, ctx);
 
         glDisable(GL_DEPTH_TEST);
@@ -116,33 +164,69 @@ public class Main {
                 int w = window.width(), h = window.height();
                 glViewport(0, 0, w, h);
                 ctx.resize(w, h);
-                if (activeScene != null) activeScene.resize(w, h);
+                transitionRenderer.resize(w, h);
+                if (transitionActive) {
+                    if (transitionFromScene != null) transitionFromScene.resize(w, h);
+                    if (transitionToScene != null) transitionToScene.resize(w, h);
+                } else if (activeScene != null) {
+                    activeScene.resize(w, h);
+                }
             }
 
             long now = System.nanoTime();
             double dt = (now - lastTime) / 1_000_000_000.0;
             lastTime = now;
 
-            if (activeScene != null) {
+            if (!transitionActive && activeScene != null) {
                 activeScene.update(dt);
                 SceneTransition transition = activeScene.pollTransition();
                 if (transition != null) applyTransition(transition, ctx);
+            } else if (transitionActive) {
+                updateTransition(dt, ctx);
+
+                if (transitionToScene != null && transitionElapsed >= transitionDuration * 0.5) {
+                    transitionToScene.update(dt);
+                } else if (transitionFromScene != null) {
+                    transitionFromScene.update(dt);
+                }
             }
 
             glClear(GL_COLOR_BUFFER_BIT);
-            if (activeScene != null) activeScene.draw(ctx);
+            if (transitionActive) {
+                drawTransition(ctx);
+            } else if (activeScene != null) {
+                activeScene.draw(ctx);
+            }
             window.swapBuffers();
         }
-        if (activeScene != null) activeScene.dispose();
+        if (transitionActive) {
+            if (transitionFromScene != null) transitionFromScene.dispose();
+            if (transitionToScene != null) transitionToScene.dispose();
+        } else if (activeScene != null) {
+            activeScene.dispose();
+        }
         window.destroy();
     }
 
-    private Scene newScene(String sceneId) {
+    private Scene inputScene() {
+        if (transitionActive) {
+            if (transitionToScene != null && transitionElapsed >= transitionDuration * 0.5) {
+                return transitionToScene;
+            }
+            if (transitionFromScene != null) {
+                return transitionFromScene;
+            }
+        }
+        return activeScene;
+    }
+
+    private Scene newScene(String sceneId, int width, int height) {
         return switch (sceneId) {
-            case SCENE_TRAVEL -> new TravelScene(windowWidth, windowHeight, inputState, starSeed);
+            case SCENE_TRAVEL -> new TravelScene(width, height, inputState, starSeed);
+            case SCENE_MAP -> new MapScene(width, height, inputState, starSeed);
             case SCENE_TITLE -> new TitleScene(
-                windowWidth,
-                windowHeight,
+                width,
+                height,
                 inputState,
                 getMessage("app.title", "Demo001"),
                 getMessage("scene.title.subtitle", "Simulation de voyage interstellaire"),
@@ -155,19 +239,62 @@ public class Main {
 
     private void switchScene(String sceneId, RenderContext ctx) {
         if (activeScene != null) activeScene.dispose();
-        activeScene = newScene(sceneId);
+        activeScene = newScene(sceneId, ctx.width, ctx.height);
         activeScene.init(ctx);
         activeScene.resize(ctx.width, ctx.height);
     }
 
     private void applyTransition(SceneTransition transition, RenderContext ctx) {
-        // Transition effects (fade, wipes, etc.) will be rendered here later.
-        // For now, transitions are immediate while still carrying effect metadata.
         if (SCENE_QUIT.equals(transition.targetSceneId())) {
             if (window != null) window.requestClose();
             return;
         }
-        switchScene(transition.targetSceneId(), ctx);
+
+        if (transitionActive) return;
+
+        SceneTransitionEffect effect = transition.effect();
+        if (effect == SceneTransitionEffect.CUT || transition.durationSeconds() <= 0.0) {
+            switchScene(transition.targetSceneId(), ctx);
+            return;
+        }
+
+        transitionFromScene = activeScene;
+        transitionToScene = newScene(transition.targetSceneId(), ctx.width, ctx.height);
+        transitionToScene.init(ctx);
+        transitionToScene.resize(ctx.width, ctx.height);
+
+        transitionActive = true;
+        transitionElapsed = 0.0;
+        transitionDuration = Math.max(MIN_TRANSITION_DURATION, transition.durationSeconds());
+        transitionTargetSceneId = transition.targetSceneId();
+        transitionEffect = effect;
+    }
+
+    private void updateTransition(double dt, RenderContext ctx) {
+        transitionElapsed += dt;
+
+        if (transitionElapsed >= transitionDuration) {
+            if (transitionFromScene != null) transitionFromScene.dispose();
+            activeScene = transitionToScene;
+
+            transitionActive = false;
+            transitionElapsed = 0.0;
+            transitionDuration = 0.0;
+            transitionTargetSceneId = null;
+            transitionEffect = SceneTransitionEffect.CUT;
+
+            transitionFromScene = null;
+            transitionToScene = null;
+        }
+    }
+
+    private void drawTransition(RenderContext ctx) {
+        if (transitionFromScene == null || transitionToScene == null) return;
+
+        transitionRenderer.captureFrom(transitionFromScene, ctx);
+        transitionRenderer.captureTo(transitionToScene, ctx);
+        float progress = (float) Math.min(1.0, transitionElapsed / transitionDuration);
+        transitionRenderer.draw(ctx, transitionEffect, progress);
     }
 
     /** Quit-confirmation overlay (ESC), replacing the former JOptionPane. */

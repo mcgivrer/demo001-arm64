@@ -47,7 +47,8 @@ public class StarfieldBehavior implements Behavior {
         {"CTRL / SHIFT",           "Thrust +/-"},
         {"F / F11",                "Plein écran"},
         {"ESCAPE",                 "Quitter"},
-        {"H",                      "Afficher/masquer l'aide"},
+        {"H",                      "Carte stellaire"},
+        {"F1",                     "Afficher/masquer l'aide"},
     };
 
     // Parallel arrays — one slot per star
