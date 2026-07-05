@@ -65,6 +65,7 @@ public class StarfieldBehavior implements Behavior {
     private double fpsTimer;
     private int    fpsFrames;
     private int    fps;
+    private double starAnimTime;
 
     private int             cx, cy;       // projection centre — follows the viewport size
     private double          projScaleX, projScaleY;
@@ -175,6 +176,9 @@ public class StarfieldBehavior implements Behavior {
 
     @Override
     public void update(Entity entity, double dt) {
+        starAnimTime += dt;
+        if (starAnimTime > 10_000.0) starAnimTime -= 10_000.0;
+
         fpsTimer += dt;
         fpsFrames++;
         if (fpsTimer >= FPS_PERIOD) {
@@ -239,6 +243,7 @@ public class StarfieldBehavior implements Behavior {
         shader.setVec2("uViewport", cx * 2, cy * 2);
         shader.setVec2("uProjScale", (float) projScaleX, (float) projScaleY);
         shader.setFloat("uNearZ", (float) NEAR_Z);
+        shader.setFloat("uTime", (float) starAnimTime);
 
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferSubData(GL_ARRAY_BUFFER, 0, starData);

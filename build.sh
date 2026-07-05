@@ -75,10 +75,28 @@ case "${1:-build}" in
   jar)
     "$0" build
     MANIFEST="target/MANIFEST.MF"
-    {
-      echo "Main-Class: $MAIN_CLASS"
-      echo "Class-Path: $(ls "$LIB_DIR"/*.jar | sed "s|^|../|" | tr '\n' ' ')"
-    } > "$MANIFEST"
+    class_path=""
+    for jar_file in "$LIB_DIR"/*.jar; do
+      class_path+="../$(basename "$jar_file") "
+    done
+    class_path="${class_path% }"
+
+    write_manifest_attr() {
+      local name="$1"
+      local value="$2"
+      local line="$name: $value"
+      # JAR manifest lines must be wrapped; continuation lines start with one space.
+      while [[ ${#line} -gt 72 ]]; do
+        printf '%s\n' "${line:0:72}" >> "$MANIFEST"
+        line=" ${line:72}"
+      done
+      printf '%s\n' "$line" >> "$MANIFEST"
+    }
+
+    : > "$MANIFEST"
+    write_manifest_attr "Main-Class" "$MAIN_CLASS"
+    write_manifest_attr "Class-Path" "$class_path"
+    printf '\n' >> "$MANIFEST"
     jar --create --file="$JAR_FILE" --manifest="$MANIFEST" -C "$OUT_DIR" .
     echo "JAR created -> $JAR_FILE (requires $LIB_DIR/ next to the project root)"
     ;;

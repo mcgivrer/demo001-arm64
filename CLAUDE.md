@@ -64,7 +64,7 @@ Each chapter must contain:
 - **Explanatory prose** — describe the concept, its motivation, and its role in the project.
 - **Mermaid diagrams** — class diagrams, sequence diagrams, flowcharts (fenced ` ```mermaid ` blocks).
 - **PlantUML diagrams** — detailed UML (fenced ` ```plantuml ` blocks with `@startuml`/`@enduml`).
-- **MathML notation** — for all mathematical formulas and physical laws (inline `<math>` blocks or `$$` LaTeX-style for renderers that support it).
+- **MathML notation** — for all mathematical formulas and physical laws (inline ` ```mathml ` `$$` LaTeX-style for renderers that support it).
 - **SVG illustrations** — stored in `src/docs/illustrations/` and referenced with a relative path `![label](illustrations/file.svg)`.
 
 ### Adding a new class or concept

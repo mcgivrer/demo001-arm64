@@ -61,7 +61,7 @@ sequenceDiagram
 
 | Fichiers | Passe | Technique |
 |---|---|---|
-| `star.vert` / `star.frag` | étoiles | `GL_POINTS` : projection, `gl_PointSize`, alpha 1/z² au vertex ; profil radial cœur+halo via `gl_PointCoord` |
+| `star.vert` / `star.frag` | étoiles | `GL_POINTS` : projection, `gl_PointSize`, alpha 1/z² au vertex ; scintillement procédural, cœur gaussien, halo/couronne et aigrettes de diffraction via `gl_PointCoord` + `uTime` |
 | `nebula.vert` / `nebula.frag` | nébuleuses | quads **instanciés** (`glDrawArraysInstanced`), positions 3D finies tournées sur CPU, profil radial × **texture de bruit fBm** (1 fetch/fragment), sortie en alpha prémultiplié |
 | `blit.vert` / `blit.frag` | composition nébuleuses | quad texturé sur le rectangle englobant du calque |
 | `quad.vert` / `quad.frag` | HUD | rectangle arrondi par **SDF**, remplissage + bordure |
@@ -69,6 +69,34 @@ sequenceDiagram
 
 Tous en `#version 300 es`, `precision highp float`, chargés et liés par
 `ShaderProgram` depuis le classpath (`/shaders/<nom>.vert|.frag`).
+
+### Modèle d'étoile procédural (star.vert / star.frag)
+
+La passe étoiles reste en sprites (`GL_POINTS`) mais le fragment shader combine
+plusieurs composantes pour éviter un rendu "pastille" :
+
+- cœur gaussien très concentré (source stellaire)
+- halo large + couronne visible (dispersion stylisée)
+- aigrettes de diffraction axiales marquées, animées dans le temps
+- scintillement multi-fréquence d'amplitude élevée, piloté par `uTime` et une seed stable
+
+La transparence finale suit :
+
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+  <mrow>
+    <msub><mi>α</mi><mi>out</mi></msub>
+    <mo>=</mo>
+    <mrow>
+      <msub><mi>α</mi><mi>geom</mi></msub>
+      <mo>·</mo>
+      <mrow><mo>(</mo><mi>core</mi><mo>+</mo><mi>halo</mi><mo>+</mo><mi>corona</mi><mo>+</mo><mi>spikes</mi><mo>)</mo></mrow>
+      <mo>·</mo>
+      <mrow><mo>(</mo><mn>1</mn><mo>+</mo><mi>A</mi><mo>·</mo><mi>w</mi><mo>(</mo><mi>t</mi><mo>,</mo><mi>seed</mi><mo>)</mo><mo>)</mo></mrow>
+    </mrow>
+  </mrow>
+</math>
+
+où α_geom est l'alpha perspective en 1/z² calculé au vertex.
 
 ### Projection en clip space (star.vert, nebula.vert)
 

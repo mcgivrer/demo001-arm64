@@ -14,8 +14,14 @@ uniform float uNearZ;       // near plane
 
 out vec3  vColor;
 out float vAlpha;
+out float vSeed;
 
 const float GLOW_FACTOR = 2.5;             // glow radius / core radius
+
+float hash31(vec3 p) {
+    // Fast stable pseudo-random seed derived from per-star attributes.
+    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+}
 
 void main() {
     float z = aPos.z;
@@ -25,6 +31,7 @@ void main() {
         gl_PointSize = 0.0;
         vColor = vec3(0.0);
         vAlpha = 0.0;
+        vSeed = 0.0;
         return;
     }
 
@@ -41,4 +48,5 @@ void main() {
     gl_PointSize = r * GLOW_FACTOR * 2.0;
 
     vColor = aColor;
+    vSeed = hash31(aPos * 3.173 + aColor * 7.13 + vec3(aBrightness, aSize, z));
 }
