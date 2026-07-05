@@ -15,11 +15,37 @@ MAVEN_BASE="https://repo1.maven.org/maven2/org/lwjgl"
 # AWT only rasterises text (headless); native access is required by LWJGL
 JAVA_OPTS="-Djava.awt.headless=true --enable-native-access=ALL-UNNAMED"
 
+native_classifier() {
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os" in
+    Linux)
+      case "$arch" in
+        aarch64|arm64) echo "linux-arm64" ;;
+        *) echo "linux" ;;
+      esac
+      ;;
+    Darwin)
+      echo "macos"
+      ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      echo "windows"
+      ;;
+    *)
+      echo "Unsupported OS: $os" >&2
+      exit 1
+      ;;
+  esac
+}
+
 deps() {
   mkdir -p "$LIB_DIR"
+  classifier="$(native_classifier)"
+
   for module in $LWJGL_MODULES; do
-    #for suffix in "" "-natives-linux-arm64"; do
-    for suffix in "-natives-macos" "-natives-windows" "-natives-linux" "-natives-linux-arm64"; do
+    for suffix in "" "-natives-$classifier"; do
       local_jar="$LIB_DIR/${module}-${LWJGL_VERSION}${suffix}.jar"
       if [[ ! -f "$local_jar" ]]; then
         url="$MAVEN_BASE/$module/$LWJGL_VERSION/${module}-${LWJGL_VERSION}${suffix}.jar"
@@ -28,7 +54,7 @@ deps() {
       fi
     done
   done
-  echo "Dependencies ready -> $LIB_DIR/"
+  echo "Dependencies ready for $classifier -> $LIB_DIR/"
 }
 
 case "${1:-build}" in
