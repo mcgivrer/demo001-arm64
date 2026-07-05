@@ -29,17 +29,19 @@ sequenceDiagram
 
     JVM->>Main: main(args)
     Main->>Main: new Main() — loadConfig, loadBundle
-    Main->>Main: run(args) — initEntities()
+    Main->>Main: run(args)
     Main->>W: new GLWindow() — contexte ES 3.0, callbacks, vsync
     Main->>Main: new RenderContext() — compile les shaders
-    Main->>Entities: entity.init(ctx) — VAO/VBO/FBO
+    Main->>Main: switchScene("title")
+    Main->>Entities: scene.init(ctx) — VAO/VBO/FBO
 
     loop tant que !shouldClose()
         Main->>W: pollEvents() → InputState
         Main->>Main: Δt = (now - lastTime) / 1e9
-        Main->>Entities: entity.update(Δt)
+        Main->>Entities: scene.update(Δt)
+        Main->>Main: pollTransition + switchScene éventuel
         Main->>Main: glClear
-        Main->>Entities: entity.draw(ctx)
+        Main->>Entities: scene.draw(ctx)
         Main->>W: swapBuffers() — bloque jusqu'au vsync
     end
 
@@ -60,10 +62,10 @@ title États de l'application demo001
 state INIT {
     [*] --> LoadConfig
     LoadConfig --> LoadI18n
-    LoadI18n --> InitEntities
-    InitEntities --> CreateGLContext
+    LoadI18n --> CreateGLContext
     CreateGLContext --> CompileShaders
-    CompileShaders --> [*]
+    CompileShaders --> InitTitleScene
+    InitTitleScene --> [*]
 }
 
 INIT --> RUNNING : entrée dans la boucle GLFW
@@ -77,6 +79,7 @@ state RUNNING {
 }
 
 RUNNING --> CONFIRM : ESC (overlay)
+RUNNING --> RUNNING : transition de scène (title -> travel)
 CONFIRM --> RUNNING : ESC (annuler)
 CONFIRM --> CLOSED : ENTRÉE (confirmer)
 RUNNING --> CLOSED : bouton fermer / Alt+F4

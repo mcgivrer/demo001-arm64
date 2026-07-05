@@ -20,7 +20,6 @@ public class GLWindow {
 
     private final long handle;
     private final InputState input;
-    private boolean confirmQuit;
 
     // Current framebuffer size, kept in sync by the GLFW callback
     private int width, height;
@@ -40,6 +39,7 @@ public class GLWindow {
 
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_DECORATED, GLFW_TRUE); // keep title bar in windowed mode
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
@@ -55,7 +55,7 @@ public class GLWindow {
         if (h == NULL) throw new IllegalStateException("Cannot create OpenGL ES 3.0 window");
         handle = h;
 
-        glfwSetKeyCallback(handle, (w, key, scancode, action, mods) -> onKey(key, action));
+        glfwSetKeyCallback(handle, (w, key, scancode, action, mods) -> onKey(key, action, mods));
         glfwSetMouseButtonCallback(handle, (w, button, action, mods) -> onMouseButton(button, action));
         glfwSetCursorPosCallback(handle, (w, x, y) -> onMouseMove(x, y));
         glfwSetFramebufferSizeCallback(handle, (w, fbWidth, fbHeight) -> {
@@ -93,6 +93,9 @@ public class GLWindow {
         } else {
             glfwSetWindowMonitor(handle, NULL, windowedX, windowedY,
                 windowedW, windowedH, 0);
+            // Some window managers keep borderless hints after monitor switches.
+            // Reassert decorations so the title bar is visible in windowed mode.
+            glfwSetWindowAttrib(handle, GLFW_DECORATED, GLFW_TRUE);
         }
         fullscreen = !fullscreen;
         glfwSwapInterval(1);   // vsync can reset across a monitor switch
@@ -100,28 +103,44 @@ public class GLWindow {
 
     // --- Input callbacks (same mapping as the former Swing GamePanel) ------
 
-    private void onKey(int key, int action) {
+    private void onKey(int key, int action, int mods) {
         if (action == GLFW_REPEAT) return;
         boolean down = action == GLFW_PRESS;
 
-        // Quit-confirm overlay captures ESC / ENTER
         if (down && key == GLFW_KEY_ESCAPE) {
-            confirmQuit = !confirmQuit;
+            input.escapeRequested = true;
             return;
-        }
-        if (confirmQuit) {
-            if (down && (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER)) {
-                glfwSetWindowShouldClose(handle, true);
-            }
-            return;   // overlay open: ignore flight controls
         }
 
         switch (key) {
+            case GLFW_KEY_ENTER, GLFW_KEY_KP_ENTER -> {
+                if (down) {
+                    input.startRequested = true;
+                    input.uiActivateRequested = true;
+                }
+            }
+            case GLFW_KEY_TAB -> {
+                if (down) {
+                    input.uiTabStep += (mods & GLFW_MOD_SHIFT) != 0 ? -1 : 1;
+                }
+            }
             case GLFW_KEY_F, GLFW_KEY_F11           -> { if (down) toggleFullscreen(); }
-            case GLFW_KEY_LEFT, GLFW_KEY_A          -> input.yawLeft    = down;
-            case GLFW_KEY_RIGHT, GLFW_KEY_D         -> input.yawRight   = down;
-            case GLFW_KEY_UP, GLFW_KEY_W            -> input.pitchUp    = down;
-            case GLFW_KEY_DOWN, GLFW_KEY_S          -> input.pitchDown  = down;
+            case GLFW_KEY_LEFT, GLFW_KEY_A -> {
+                input.yawLeft = down;
+                if (down && key == GLFW_KEY_LEFT) input.uiFocusStep -= 1;
+            }
+            case GLFW_KEY_RIGHT, GLFW_KEY_D -> {
+                input.yawRight = down;
+                if (down && key == GLFW_KEY_RIGHT) input.uiFocusStep += 1;
+            }
+            case GLFW_KEY_UP, GLFW_KEY_W -> {
+                input.pitchUp = down;
+                if (down && key == GLFW_KEY_UP) input.uiFocusStep -= 1;
+            }
+            case GLFW_KEY_DOWN, GLFW_KEY_S -> {
+                input.pitchDown = down;
+                if (down && key == GLFW_KEY_DOWN) input.uiFocusStep += 1;
+            }
             case GLFW_KEY_Q                         -> input.rollLeft   = down;
             case GLFW_KEY_E                         -> input.rollRight  = down;
             case GLFW_KEY_SPACE                     -> input.brake      = down;
@@ -137,6 +156,11 @@ public class GLWindow {
             input.mouseDragging = true;
             double[] x = new double[1], y = new double[1];
             glfwGetCursorPos(handle, x, y);
+            input.pointerX = x[0];
+            input.pointerY = y[0];
+            input.uiClickX = x[0];
+            input.uiClickY = y[0];
+            input.uiClickRequested = true;
             updateMouseNorm(x[0], y[0]);
         } else if (action == GLFW_RELEASE) {
             input.mouseDragging = false;
@@ -146,6 +170,8 @@ public class GLWindow {
     }
 
     private void onMouseMove(double x, double y) {
+        input.pointerX = x;
+        input.pointerY = y;
         if (input.mouseDragging) updateMouseNorm(x, y);
     }
 
@@ -159,9 +185,13 @@ public class GLWindow {
     // --- Loop helpers -------------------------------------------------------
 
     public boolean shouldClose()   { return glfwWindowShouldClose(handle); }
-    public boolean isConfirmQuit() { return confirmQuit; }
+    public boolean isConfirmQuit() { return false; }
     public void pollEvents()       { glfwPollEvents(); }
     public void swapBuffers()      { glfwSwapBuffers(handle); }
+
+    public void requestClose() {
+        glfwSetWindowShouldClose(handle, true);
+    }
 
     public int width()  { return width; }
     public int height() { return height; }

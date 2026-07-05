@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08101f"/>
+      <stop offset="100%" stop-color="#0f223e"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#93d0ff"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="360" fill="url(#bg)"/>
+
+  <rect x="90" y="90" width="250" height="170" rx="16" fill="#102746" stroke="#8fd1ff" stroke-width="2"/>
+  <text x="215" y="130" text-anchor="middle" fill="#e9f7ff" font-family="sans-serif" font-size="24" font-weight="700">TitleScene</text>
+  <text x="215" y="165" text-anchor="middle" fill="#b6dfff" font-family="sans-serif" font-size="14">draw title + start prompt</text>
+  <text x="215" y="188" text-anchor="middle" fill="#b6dfff" font-family="sans-serif" font-size="14">consume ENTER</text>
+  <text x="215" y="211" text-anchor="middle" fill="#b6dfff" font-family="sans-serif" font-size="14">emit fadeTo("travel")</text>
+
+  <rect x="620" y="90" width="250" height="170" rx="16" fill="#133124" stroke="#8fffc8" stroke-width="2"/>
+  <text x="745" y="130" text-anchor="middle" fill="#ebfff4" font-family="sans-serif" font-size="24" font-weight="700">TravelScene</text>
+  <text x="745" y="165" text-anchor="middle" fill="#cbffe6" font-family="sans-serif" font-size="14">owns ParticleSystem</text>
+  <text x="745" y="188" text-anchor="middle" fill="#cbffe6" font-family="sans-serif" font-size="14">update entities</text>
+  <text x="745" y="211" text-anchor="middle" fill="#cbffe6" font-family="sans-serif" font-size="14">draw simulation + HUD</text>
+
+  <rect x="385" y="35" width="190" height="290" rx="14" fill="#1f1a39" stroke="#d0b3ff" stroke-width="2"/>
+  <text x="480" y="73" text-anchor="middle" fill="#f7eeff" font-family="sans-serif" font-size="20" font-weight="700">Main</text>
+  <text x="480" y="104" text-anchor="middle" fill="#d8c8ff" font-family="sans-serif" font-size="13">scene manager</text>
+  <text x="480" y="148" text-anchor="middle" fill="#d8c8ff" font-family="sans-serif" font-size="13">poll transition</text>
+  <text x="480" y="171" text-anchor="middle" fill="#d8c8ff" font-family="sans-serif" font-size="13">switchScene(id)</text>
+  <text x="480" y="194" text-anchor="middle" fill="#d8c8ff" font-family="sans-serif" font-size="13">future: fade/wipe</text>
+
+  <line x1="340" y1="175" x2="385" y2="175" stroke="#93d0ff" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="575" y1="175" x2="620" y2="175" stroke="#93d0ff" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="620" y1="235" x2="575" y2="235" stroke="#63c7ff" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow)"/>
+  <text x="595" y="258" text-anchor="middle" fill="#9eddff" font-family="sans-serif" font-size="12">future return to menu</text>
+
+  <text x="480" y="338" text-anchor="middle" fill="#a7c8e6" font-family="sans-serif" font-size="13">
+    SceneTransition carries target + effect metadata, currently executed as immediate switch.
+  </text>
+</svg>

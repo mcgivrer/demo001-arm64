@@ -25,9 +25,23 @@ classDiagram
         +boolean thrustUp
         +boolean thrustDown
         +boolean showHelp
+        +boolean startRequested
+        +boolean uiActivateRequested
+        +int uiTabStep
+        +int uiFocusStep
+        +boolean uiClickRequested
+        +double uiClickX
+        +double uiClickY
+        +double pointerX
+        +double pointerY
         +boolean mouseDragging
         +double mouseNormX
         +double mouseNormY
+        +consumeStartRequested() boolean
+        +consumeUiActivateRequested() boolean
+        +consumeUiTabStep() int
+        +consumeUiFocusStep() int
+        +consumeUiClickRequested() boolean
     }
 
     class GLWindow {
@@ -81,7 +95,10 @@ verrou n'est nécessaire.
 | Joystick yaw+pitch | —               | Clic gauche maintenu + glisser  |
 | Puissance moteur +| CTRL                 | —                               |
 | Puissance moteur -| SHIFT                | —                               |
-| Quitter (confirmation) | ESCAPE          | —                               |
+| Demarrer le voyage (ecran titre) | ENTER | —                               |
+| Navigation boutons UI (ecran titre/menu) | TAB / SHIFT+TAB, FLECHES | —     |
+| Activer bouton UI (ecran titre/menu) | ENTER | Clic gauche                 |
+| Retour au titre (depuis TravelScene) | ESCAPE | —                           |
 | Afficher/masquer l'aide | H              | —                               |
 
 La puissance moteur (`thrustUp`/`thrustDown`) pilote la vitesse d'avancement du
@@ -122,16 +139,28 @@ droite, énumère l'intégralité du mapping clavier/souris ci-dessus.
 
 ---
 
-## Quitter l'application — ESCAPE
+## ESCAPE — retour de scene
 
-Contrairement aux autres touches, ESCAPE ne modifie pas `InputState` : elle bascule
-le drapeau `confirmQuit` de `GLWindow`, et `Main.drawExitOverlay()` rend alors un
-**overlay de confirmation en OpenGL** (scène assombrie + panneau arrondi centré),
-avec titre, message et aide localisés (clés i18n `app.exit.confirm.title` /
-`.message` / `.hint`). Tant que l'overlay est ouvert, les contrôles de vol sont
-ignorés ; **ENTRÉE** confirme (`glfwSetWindowShouldClose`), **ESC** annule.
-L'animation continue de tourner derrière l'overlay — la boucle de jeu n'est jamais
-bloquée, contrairement à l'ancienne boîte modale Swing.
+La touche ESCAPE déclenche désormais un événement transient
+`input.escapeRequested = true`. Dans `TravelScene`, cet événement est consommé pour
+émettre une transition vers `TitleScene` (retour écran titre). Dans `TitleScene`,
+l'événement est consommé et ignoré pour éviter un effet de bord lors d'une future
+entrée dans la simulation.
+
+La sortie de l'application se fait par le bouton `Quitter` de l'écran titre.
+
+## Action transient "start" pour TitleScene
+
+La touche ENTER (ou keypad ENTER) ne pilote pas un état continu : elle déclenche
+`input.startRequested = true` sur `GLFW_PRESS`. `TitleScene` consomme ensuite cet
+événement via `consumeStartRequested()` (read-and-reset) afin de produire au plus
+une transition par appui.
+
+Le même appui ENTER produit aussi `uiActivateRequested` (validation du bouton
+focalisé). TAB remplit `uiTabStep` (`+1` ou `-1` avec SHIFT), les flèches
+alimentent `uiFocusStep` (`-1` pour gauche/haut, `+1` pour droite/bas), et un
+clic gauche alimente `uiClickRequested` avec ses coordonnées pixel
+(`uiClickX`, `uiClickY`).
 
 ---
 

@@ -1,6 +1,9 @@
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.Properties;
+import java.util.ResourceBundle;
 
 import static org.lwjgl.opengles.GLES20.*;
 
@@ -10,6 +13,9 @@ public class Main {
     private static final int    DEFAULT_HEIGHT = 600;
     private static final String DEFAULT_LANG   = "EN";
     private static final long   DEFAULT_SEED   = 42L;
+    private static final String SCENE_TITLE    = "title";
+    private static final String SCENE_TRAVEL   = "travel";
+    private static final String SCENE_QUIT     = "quit";
 
     private final int    windowWidth;
     private final int    windowHeight;
@@ -17,9 +23,10 @@ public class Main {
     private final String windowTitle;
     private final ResourceBundle bundle;
 
-    private final List<Entity>  entities   = new ArrayList<>();
     private final InputState    inputState = new InputState();
     private long lastTime;
+    private Scene activeScene;
+    private GLWindow window;
 
     public Main() {
         System.out.println("Starting Application...");
@@ -80,13 +87,8 @@ public class Main {
         for (String arg : args) {
             System.out.printf("-> arg:%s%n", arg);
         }
-        initEntities();
         runRenderLoop();
         dispose();
-    }
-
-    private void initEntities() {
-        entities.add(new ParticleSystem(windowWidth, windowHeight, inputState, starSeed));
     }
 
     /**
@@ -95,9 +97,9 @@ public class Main {
      * swap — vsync (swapInterval 1) paces the loop at the display rate.
      */
     private void runRenderLoop() {
-        GLWindow window = new GLWindow(windowWidth, windowHeight, windowTitle, inputState);
+        window = new GLWindow(windowWidth, windowHeight, windowTitle, inputState);
         RenderContext ctx = new RenderContext(windowWidth, windowHeight);
-        for (Entity entity : entities) entity.init(ctx);
+        switchScene(SCENE_TITLE, ctx);
 
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
@@ -114,22 +116,58 @@ public class Main {
                 int w = window.width(), h = window.height();
                 glViewport(0, 0, w, h);
                 ctx.resize(w, h);
-                for (Entity entity : entities) entity.resize(w, h);
+                if (activeScene != null) activeScene.resize(w, h);
             }
 
             long now = System.nanoTime();
             double dt = (now - lastTime) / 1_000_000_000.0;
             lastTime = now;
 
-            for (Entity entity : entities) entity.update(dt);
+            if (activeScene != null) {
+                activeScene.update(dt);
+                SceneTransition transition = activeScene.pollTransition();
+                if (transition != null) applyTransition(transition, ctx);
+            }
 
             glClear(GL_COLOR_BUFFER_BIT);
-            for (Entity entity : entities) entity.draw(ctx);
-            if (window.isConfirmQuit()) drawExitOverlay(ctx);
-
+            if (activeScene != null) activeScene.draw(ctx);
             window.swapBuffers();
         }
+        if (activeScene != null) activeScene.dispose();
         window.destroy();
+    }
+
+    private Scene newScene(String sceneId) {
+        return switch (sceneId) {
+            case SCENE_TRAVEL -> new TravelScene(windowWidth, windowHeight, inputState, starSeed);
+            case SCENE_TITLE -> new TitleScene(
+                windowWidth,
+                windowHeight,
+                inputState,
+                getMessage("app.title", "Demo001"),
+                getMessage("scene.title.subtitle", "Simulation de voyage interstellaire"),
+                getMessage("scene.title.start", "Appuyez sur Entrée pour démarrer"),
+                getMessage("scene.title.quit", "Quitter")
+            );
+            default -> throw new IllegalArgumentException("Unknown scene id: " + sceneId);
+        };
+    }
+
+    private void switchScene(String sceneId, RenderContext ctx) {
+        if (activeScene != null) activeScene.dispose();
+        activeScene = newScene(sceneId);
+        activeScene.init(ctx);
+        activeScene.resize(ctx.width, ctx.height);
+    }
+
+    private void applyTransition(SceneTransition transition, RenderContext ctx) {
+        // Transition effects (fade, wipes, etc.) will be rendered here later.
+        // For now, transitions are immediate while still carrying effect metadata.
+        if (SCENE_QUIT.equals(transition.targetSceneId())) {
+            if (window != null) window.requestClose();
+            return;
+        }
+        switchScene(transition.targetSceneId(), ctx);
     }
 
     /** Quit-confirmation overlay (ESC), replacing the former JOptionPane. */

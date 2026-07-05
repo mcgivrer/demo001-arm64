@@ -7,15 +7,18 @@ continu, rendue en **OpenGL ES 3.0** via LWJGL 3 (fenêtre GLFW, shaders GLSL �
 [chapitre 12](12-opengl-pipeline.md)). Elle est compilée avec Java 26 et packagée via
 un script `build.sh` maison qui télécharge les jars LWJGL dans `lib/`.
 
-L'architecture repose sur quatre couches :
+L'architecture repose sur cinq couches :
 
 1. **Infrastructure applicative** (`Main`, `GLWindow`) — chargement de la configuration,
    localisation, fenêtre GLFW + contexte GL et boucle de jeu.
-2. **Infrastructure de rendu** (`RenderContext`, `ShaderProgram`, `QuadRenderer`,
+2. **Gestion de scènes** (`Scene`, `TitleScene`, `TravelScene`, `SceneTransition`,
+   `TextObject`, `ControlUI`, `ButtonObject`) —
+    découpage des écrans, cycle de vie et navigation.
+3. **Infrastructure de rendu** (`RenderContext`, `ShaderProgram`, `QuadRenderer`,
    `TextRenderer`) — shaders partagés et primitives HUD.
-3. **Modèle de scène** (`Entity`, `Behavior`) — graphe d'objets génériques avec composition
+4. **Modèle de scène** (`Entity`, `Behavior`) — graphe d'objets génériques avec composition
    de comportements.
-4. **Comportements métier** (`ParticleSystem`, `StarfieldBehavior`,
+5. **Comportements métier** (`ParticleSystem`, `StarfieldBehavior`,
    `NebulaFieldBehavior`) — simulation physique et rendu.
 
 ![Architecture overview](illustrations/architecture-overview.svg)
@@ -30,14 +33,61 @@ classDiagram
         -int windowWidth
         -int windowHeight
         -String windowTitle
-        -List~Entity~ entities
+        -Scene activeScene
         -long lastTime
         +main(String[] args)
         +run(String[] args)
-        -initEntities()
         -runRenderLoop()
+        -switchScene(String, RenderContext)
+        -applyTransition(SceneTransition, RenderContext)
         -drawExitOverlay(RenderContext)
         -loadConfig() Properties
+    }
+
+    class Scene {
+        <<interface>>
+        +init(RenderContext)
+        +resize(int, int)
+        +update(double dt)
+        +draw(RenderContext)
+        +pollTransition() SceneTransition
+    }
+
+    class TitleScene {
+        -InputState input
+        -List~Entity~ entities
+        -List~ButtonObject~ buttons
+        -SceneTransition pendingTransition
+        +update(double dt)
+        +draw(RenderContext)
+    }
+
+    class TextObject {
+        +draw(RenderContext)
+    }
+
+    class ButtonObject {
+        +contains(double, double) boolean
+        +activate()
+        +draw(RenderContext)
+    }
+
+    class ControlUI {
+        <<abstract>>
+        +contains(double, double) boolean
+        +activate()
+    }
+
+    class TravelScene {
+        -List~Entity~ entities
+        +update(double dt)
+        +draw(RenderContext)
+    }
+
+    class SceneTransition {
+        -String targetSceneId
+        -SceneTransitionEffect effect
+        -double durationSeconds
     }
 
     class GLWindow {
@@ -115,7 +165,16 @@ classDiagram
 
     Main --> GLWindow : crée
     Main --> RenderContext : crée
-    Main "1" --> "*" Entity : possède et dessine
+    Main --> Scene : active + pilote
+    Scene <|.. TitleScene
+    Scene <|.. TravelScene
+    TextObject --|> Entity
+    ControlUI --|> Entity
+    ButtonObject --|> ControlUI
+    TitleScene --> SceneTransition : émet
+    TitleScene --> TextObject : compose
+    TitleScene --> ButtonObject : compose
+    TravelScene "1" --> "*" Entity : possède et dessine
     GLWindow --> InputState : callbacks GLFW
     Entity "1" --> "*" Behavior : délègue
     ParticleSystem --|> Entity : étend
@@ -147,17 +206,19 @@ participant "Entity / Behavior" as E
 JVM -> M : main(args)
 activate M
 M -> M : new Main()\nloadConfig()\nloadBundle(locale)
-M -> M : run(args)\ninitEntities()
+M -> M : run(args)
 M -> W : new GLWindow()\ncontexte OpenGL ES 3.0 + vsync
 M -> C : new RenderContext()\ncompile les 5 shaders
-M -> E : entity.init(ctx)\nVAO / VBO / FBO
+M -> M : switchScene("title")
+M -> E : scene.init(ctx)\nVAO / VBO / FBO
 
 loop tant que !window.shouldClose()
     M -> W : pollEvents() → InputState
     M -> M : Δt (nanoTime)
-    M -> E : entity.update(dt)
+    M -> E : scene.update(dt)
+    M -> M : pollTransition() + switchScene(...) éventuel
     M -> M : glClear
-    M -> E : entity.draw(ctx)
+    M -> E : scene.draw(ctx)
     M -> M : overlay ESC éventuel
     M -> W : swapBuffers() — vsync
 end
